@@ -73,10 +73,17 @@ class AppState extends ChangeNotifier {
 
   void _seedNotes() {
     notes = [
+      Note(
+        id: '0',
+        title: 'Добро пожаловать в Органайзер 👋',
+        body: 'Это пример заметки. Здесь можно писать всё что угодно — идеи, планы, рецепты, впечатления.\n\nИспользуй три режима просмотра в правом верхнем углу:\n• Крупный список — максимум деталей\n• Сетка — две колонки, быстрый обзор\n• Мелкий список — только заголовки\n\nНажми на любую заметку чтобы открыть и отредактировать её. Тег выбирается в правом верхнем углу редактора.',
+        category: 'Личное',
+        createdAt: DateTime.now(),
+      ),
       Note(id: '1', title: 'Идеи для стартапа', body: 'Добавить новый раздел навигации, переработать онбординг, интеграция с календарём', category: 'Работа', createdAt: DateTime.now()),
       Note(id: '2', title: 'Список покупок', body: 'Молоко · Авокадо · Кофе · Хлеб · Яйца · Масло', category: 'Личное', createdAt: DateTime.now().subtract(const Duration(days: 1))),
       Note(id: '3', title: 'План поездки', body: 'Стамбул · 20–25 мая · Отель Bosphorus · Экскурсии', category: 'Путешествия', createdAt: DateTime.now().subtract(const Duration(days: 6))),
-      Note(id: '4', title: 'Рецепт карбонары', body: '200г спагетти · гуанчале · яйца · пекорино романо', category: 'Рецепты', createdAt: DateTime.now().subtract(const Duration(days: 10))),
+      Note(id: '4', title: 'Рецепт карбонары', body: '200г спагетти · гуанчале · яйца · пекорино романо', category: 'Рецепты', createdAt: DateTime(2023, 11, 15)),
     ];
   }
 

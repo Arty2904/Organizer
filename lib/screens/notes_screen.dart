@@ -28,26 +28,10 @@ class _NotesScreenState extends State<NotesScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Заметки',
-                style: GoogleFonts.fraunces(
-                  fontSize: 26, fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.darkText : AppColors.lightText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${notes.length} заметок',
-                style: GoogleFonts.dmSans(
-                  fontSize: 11, fontStyle: FontStyle.italic,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                ),
-              ),
-              const SizedBox(height: 10),
               AppSearchBar(onChanged: (q) => setState(() => _query = q), hint: 'Поиск заметок...'),
               const SizedBox(height: 10),
               CategoryFilterRow(
@@ -63,10 +47,10 @@ class _NotesScreenState extends State<NotesScreen> {
           child: notes.isEmpty
               ? _emptyState(isDark)
               : v == 1
-                  ? _listView(context, notes, state, isDark)
+                  ? _listView(context, notes, state)
                   : v == 2
-                      ? _gridView(context, notes, state, isDark)
-                      : _compactView(context, notes, state, isDark),
+                      ? _gridView(context, notes, state)
+                      : _compactView(context, notes, state),
         ),
       ],
     );
@@ -76,30 +60,31 @@ class _NotesScreenState extends State<NotesScreen> {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.note_add_outlined, size: 48, color: AppColors.terracotta.withOpacity(0.3)),
+        Icon(Icons.note_add_outlined, size: 48,
+            color: AppColors.terracotta.withValues(alpha: 0.3)),
         const SizedBox(height: 12),
         Text('Нет заметок', style: GoogleFonts.fraunces(
-          fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+          fontSize: 16,
+          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
         )),
       ],
     ),
   );
 
-  Widget _listView(BuildContext context, List<Note> notes, AppState state, bool isDark) {
+  Widget _listView(BuildContext context, List<Note> notes, AppState state) {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => _NoteCard(
-        note: notes[i],
-        showTag: state.notesFilter == 'Все',
-        compact: false,
+        note: notes[i], showTag: state.notesFilter == 'Все',
+        compact: false, grid: false,
         onTap: () => _openEditor(context, notes[i]),
       ),
     );
   }
 
-  Widget _gridView(BuildContext context, List<Note> notes, AppState state, bool isDark) {
+  Widget _gridView(BuildContext context, List<Note> notes, AppState state) {
     return MasonryGridView.count(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       crossAxisCount: 2,
@@ -107,23 +92,20 @@ class _NotesScreenState extends State<NotesScreen> {
       crossAxisSpacing: 10,
       itemCount: notes.length,
       itemBuilder: (ctx, i) => _NoteCard(
-        note: notes[i],
-        showTag: state.notesFilter == 'Все',
-        compact: false,
-        grid: true,
+        note: notes[i], showTag: state.notesFilter == 'Все',
+        compact: false, grid: true,
         onTap: () => _openEditor(context, notes[i]),
       ),
     );
   }
 
-  Widget _compactView(BuildContext context, List<Note> notes, AppState state, bool isDark) {
+  Widget _compactView(BuildContext context, List<Note> notes, AppState state) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
       itemBuilder: (ctx, i) => _NoteCard(
-        note: notes[i],
-        showTag: false,
-        compact: true,
+        note: notes[i], showTag: false,
+        compact: true, grid: false,
         onTap: () => _openEditor(context, notes[i]),
       ),
     );
@@ -148,7 +130,7 @@ class _NoteCard extends StatelessWidget {
     required this.note,
     required this.showTag,
     required this.compact,
-    this.grid = false,
+    required this.grid,
     required this.onTap,
   });
 
@@ -161,51 +143,90 @@ class _NoteCard extends StatelessWidget {
     final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final catColor = AppColors.categoryColor(note.category);
 
+    // ── Compact view (view 3) ──
     if (compact) {
       return GestureDetector(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
-              ),
-            ),
+            border: Border(bottom: BorderSide(
+              color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+            )),
           ),
           child: Row(
             children: [
-              Container(
-                width: 6, height: 6,
-                decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
-              ),
+              Container(width: 6, height: 6,
+                  decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  note.title,
+                child: Text(note.title,
                   style: GoogleFonts.fraunces(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-                  ),
+                      fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                formatDate(note.createdAt),
-                style: GoogleFonts.dmSans(fontSize: 10, color: textSec),
-              ),
+              Text(formatDate(note.createdAt),
+                  style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
             ],
           ),
         ),
       );
     }
 
+    // ── Grid view (view 2) — no dot, no date, title 1 line, body edge-to-edge ──
+    if (grid) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+              width: 0.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title — 1 line, ellipsis, no dot
+              Text(
+                note.title,
+                style: GoogleFonts.fraunces(
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                  color: textColor, height: 1.25,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (note.body.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                // Body edge-to-edge (no side padding)
+                Text(
+                  note.body,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11, color: textSec, height: 1.4,
+                  ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ── List view (view 1) ──
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(grid ? 12 : 14),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: cardBg,
-          borderRadius: BorderRadius.circular(grid ? 16 : 18),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
             width: 0.5,
@@ -214,60 +235,49 @@ class _NoteCard extends StatelessWidget {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.only(right: 56),
+              padding: const EdgeInsets.only(right: 60),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 6, height: 6,
-                        decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
-                      ),
+                      Container(width: 6, height: 6,
+                          decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
                       const SizedBox(width: 7),
                       Expanded(
-                        child: Text(
-                          note.title,
+                        child: Text(note.title,
                           style: GoogleFonts.fraunces(
-                            fontSize: grid ? 13 : 15,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                            height: 1.25,
+                            fontSize: 15, fontWeight: FontWeight.w600,
+                            color: textColor, height: 1.25,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                   if (note.body.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text(
-                      note.body,
+                    Text(note.body,
                       style: GoogleFonts.dmSans(
-                        fontSize: grid ? 11 : 12,
-                        color: textSec,
-                        height: 1.4,
-                      ),
-                      maxLines: grid ? 4 : null,
-                      overflow: grid ? TextOverflow.ellipsis : null,
+                          fontSize: 12, color: textSec, height: 1.4),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ],
               ),
             ),
-            Positioned(
-              top: 0, right: 0,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (showTag) CategoryBadge(label: note.category),
-                  const SizedBox(height: 4),
-                  Text(
-                    formatDate(note.createdAt),
-                    style: GoogleFonts.dmSans(fontSize: 9, color: textSec),
-                  ),
-                ],
+            // Top right: tag (7 chars max) only — no date
+            if (showTag)
+              Positioned(
+                top: 0, right: 0,
+                child: CategoryBadge(
+                  label: note.category.length > 7
+                      ? note.category.substring(0, 7)
+                      : note.category,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -288,6 +298,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late TextEditingController _titleCtrl;
   late TextEditingController _bodyCtrl;
   late String _category;
+  bool _tagMenuOpen = false;
+
+  static const _allTags = [
+    'Работа', 'Личное', 'Идеи', 'Путешествия', 'Рецепты',
+    'Финансы', 'Здоровье', 'Учёба', 'Проекты', 'Разное',
+  ];
 
   @override
   void initState() {
@@ -306,15 +322,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   void _save() {
     final state = context.read<AppState>();
+    final title = _titleCtrl.text.trim().isEmpty
+        ? 'Без названия'
+        : _titleCtrl.text.trim();
     if (widget.note != null) {
-      widget.note!.title = _titleCtrl.text.trim().isEmpty ? 'Без названия' : _titleCtrl.text.trim();
+      widget.note!.title = title;
       widget.note!.body = _bodyCtrl.text;
       widget.note!.category = _category;
+      widget.note!.createdAt = DateTime.now();
       state.updateNote(widget.note!);
     } else {
       state.addNote(Note(
         id: const Uuid().v4(),
-        title: _titleCtrl.text.trim().isEmpty ? 'Без названия' : _titleCtrl.text.trim(),
+        title: title,
         body: _bodyCtrl.text,
         category: _category,
       ));
@@ -337,107 +357,224 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final charCount = _bodyCtrl.text.length;
+    final catColor = AppColors.categoryColor(_category);
+    final editDate = widget.note?.createdAt ?? DateTime.now();
 
     return Theme(
       data: buildTheme(isDark),
-      child: Scaffold(
-        backgroundColor: bg,
-        appBar: AppBar(
-          backgroundColor: surface,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_rounded, size: 18, color: text),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            'Органайзер',
-            style: GoogleFonts.fraunces(
-              fontSize: 17, fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic, color: text,
+      child: GestureDetector(
+        onTap: () { if (_tagMenuOpen) setState(() => _tagMenuOpen = false); },
+        child: Scaffold(
+          backgroundColor: bg,
+          appBar: AppBar(
+            backgroundColor: surface,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios_rounded, size: 18, color: text),
+              onPressed: () => Navigator.pop(context),
             ),
-          ),
-          actions: [
-            if (widget.note != null)
-              IconButton(
-                icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withOpacity(0.7), size: 20),
-                onPressed: _delete,
+            title: Text('Органайзер',
+              style: GoogleFonts.fraunces(
+                fontSize: 17, fontWeight: FontWeight.w600,
+                fontStyle: FontStyle.italic, color: text,
               ),
-            TextButton(
-              onPressed: _save,
-              child: Text(
-                'ГОТОВО',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12, fontWeight: FontWeight.w800,
-                  color: AppColors.terracotta,
+            ),
+            actions: [
+              if (widget.note != null)
+                IconButton(
+                  icon: Icon(Icons.delete_outline_rounded,
+                      color: Colors.red.withValues(alpha: 0.7), size: 20),
+                  onPressed: _delete,
+                ),
+              TextButton(
+                onPressed: _save,
+                child: Text('ГОТОВО',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12, fontWeight: FontWeight.w800,
+                    color: AppColors.terracotta,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          body: Stack(
             children: [
-              // Category selector
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: AppState.noteCategories.skip(1).map((cat) {
-                    final sel = _category == cat;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _category = cat),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: sel ? AppColors.categoryColor(cat) : (isDark ? AppColors.darkCard : AppColors.lightCardAlt),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            cat,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11, fontWeight: FontWeight.w600,
-                              color: sel ? Colors.white : textSec,
-                            ),
+              // ── Main content ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Padding(
+                      padding: const EdgeInsets.only(right: 110),
+                      child: TextField(
+                        controller: _titleCtrl,
+                        onChanged: (_) => setState(() {}),
+                        style: GoogleFonts.fraunces(
+                          fontSize: 24, fontWeight: FontWeight.w600, color: text,
+                        ),
+                        decoration: InputDecoration(
+                          filled: false, border: InputBorder.none,
+                          hintText: 'Заголовок',
+                          hintStyle: GoogleFonts.fraunces(
+                            fontSize: 24, fontWeight: FontWeight.w600,
+                            color: textSec.withValues(alpha: 0.4),
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _titleCtrl,
-                style: GoogleFonts.fraunces(
-                  fontSize: 24, fontWeight: FontWeight.w600, color: text,
-                ),
-                decoration: InputDecoration(
-                  filled: false,
-                  border: InputBorder.none,
-                  hintText: 'Заголовок',
-                  hintStyle: GoogleFonts.fraunces(
-                    fontSize: 24, fontWeight: FontWeight.w600,
-                    color: textSec.withOpacity(0.4),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _bodyCtrl,
-                  maxLines: null,
-                  expands: true,
-                  style: GoogleFonts.dmSans(fontSize: 15, color: text, height: 1.6),
-                  decoration: InputDecoration(
-                    filled: false,
-                    border: InputBorder.none,
-                    hintText: 'Текст заметки...',
-                    hintStyle: GoogleFonts.dmSans(
-                      fontSize: 15, color: textSec.withOpacity(0.4),
                     ),
-                  ),
+                    // Body
+                    Expanded(
+                      child: TextField(
+                        controller: _bodyCtrl,
+                        maxLines: null,
+                        expands: true,
+                        onChanged: (_) => setState(() {}),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 15, color: text, height: 1.6),
+                        decoration: InputDecoration(
+                          filled: false, border: InputBorder.none,
+                          hintText: 'Текст заметки...',
+                          hintStyle: GoogleFonts.dmSans(
+                            fontSize: 15,
+                            color: textSec.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Bottom bar — date + char count (bottom right)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border(
+                            top: BorderSide(color: divider, width: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${formatDate(editDate)}  ·  $charCount симв.',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 10, color: textSec),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Tag dropdown — top right ──
+              Positioned(
+                top: 12,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Tag chip button
+                    GestureDetector(
+                      onTap: () =>
+                          setState(() => _tagMenuOpen = !_tagMenuOpen),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: catColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _category,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11, fontWeight: FontWeight.w700,
+                                color: catColor,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              _tagMenuOpen
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: 14, color: catColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Dropdown list with scroll, 10 tags
+                    if (_tagMenuOpen)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        width: 150,
+                        constraints: const BoxConstraints(maxHeight: 300),
+                        decoration: BoxDecoration(
+                          color: surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border:
+                              Border.all(color: divider, width: 0.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black
+                                  .withValues(alpha: isDark ? 0.4 : 0.1),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ListView(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 6),
+                          shrinkWrap: true,
+                          children: _allTags.map((tag) {
+                            final sel = _category == tag;
+                            final tColor = AppColors.categoryColor(tag);
+                            return GestureDetector(
+                              onTap: () => setState(() {
+                                _category = tag;
+                                _tagMenuOpen = false;
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 9),
+                                color: sel
+                                    ? tColor.withValues(alpha: 0.1)
+                                    : Colors.transparent,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 7, height: 7,
+                                      decoration: BoxDecoration(
+                                        color: tColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(tag,
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 12,
+                                          fontWeight: sel
+                                              ? FontWeight.w700
+                                              : FontWeight.w400,
+                                          color: sel ? tColor : text,
+                                        ),
+                                      ),
+                                    ),
+                                    if (sel)
+                                      Icon(Icons.check_rounded,
+                                          size: 14, color: tColor),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],

@@ -80,7 +80,7 @@ class _HomeShellState extends State<HomeShell> {
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
           title: Text(
-            'Органайзер',
+            _tabLabels[tab],
             style: GoogleFonts.fraunces(
               fontSize: 17, fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic, color: text,

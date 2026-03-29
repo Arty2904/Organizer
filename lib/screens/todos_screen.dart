@@ -29,26 +29,10 @@ class _TodosScreenState extends State<TodosScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Дела',
-                style: GoogleFonts.fraunces(
-                  fontSize: 26, fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.darkText : AppColors.lightText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${todos.length} списков',
-                style: GoogleFonts.dmSans(
-                  fontSize: 11, fontStyle: FontStyle.italic,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                ),
-              ),
-              const SizedBox(height: 10),
               AppSearchBar(onChanged: (q) => setState(() => _query = q), hint: 'Поиск...'),
               const SizedBox(height: 10),
               CategoryFilterRow(
