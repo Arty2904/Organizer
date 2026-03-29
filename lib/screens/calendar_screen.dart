@@ -36,8 +36,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final surface = isDark ? AppColors.darkBg : AppColors.lightBg;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
     final eventsMonth = state.eventsInMonth(_displayMonth);
@@ -84,7 +84,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         textAlign: TextAlign.center,
                         style: GoogleFonts.fraunces(
                           fontSize: 18, fontWeight: FontWeight.w600,
-                          color: text, fontStyle: FontStyle.italic,
+                          color: text,
                         ),
                       ),
                     ),
@@ -109,7 +109,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         textAlign: TextAlign.center,
                         style: GoogleFonts.dmSans(
                           fontSize: 10, fontWeight: FontWeight.w700,
-                          color: d == 'Сб' || d == 'Вс' ? AppColors.terracotta.withOpacity(0.6) : textSec,
+                          color: d == 'Сб' || d == 'Вс' ? AppColors.terracotta.withValues(alpha: 0.6) : textSec,
                         ),
                       ),
                     ),
@@ -138,9 +138,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     if (selEvents.isNotEmpty) ...[
                       _ListHeader('СОБЫТИЯ', isDark),
                       ...selEvents.map((e) => _CalEventTile(event: e, isDark: isDark, onTap: () {
-                        showModalBottomSheet(
-                          context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-                          builder: (_) => EventEditorSheet(event: e),
+                        showDialog(
+                          context: context,
+                          barrierColor: Colors.black.withValues(alpha: 0.4),
+                          builder: (_) => EventEditorDialog(event: e),
                         );
                       })),
                     ],
@@ -148,9 +149,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       const SizedBox(height: 12),
                       _ListHeader('ДЕЛА', isDark),
                       ...selTodos.map((t) => _CalTodoTile(group: t, isDark: isDark, onTap: () {
-                        showModalBottomSheet(
-                          context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-                          builder: (_) => TodoEditorSheet(group: t),
+                        showDialog(
+                          context: context,
+                          barrierColor: Colors.black.withValues(alpha: 0.4),
+                          builder: (_) => TodoEditorDialog(group: t),
                         );
                       })),
                     ],
@@ -200,7 +202,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     height: 36,
                     margin: const EdgeInsets.all(1),
                     decoration: BoxDecoration(
-                      color: isSel ? AppColors.terracotta : (isToday ? AppColors.terracotta.withOpacity(0.12) : Colors.transparent),
+                      color: isSel ? AppColors.terracotta : (isToday ? AppColors.terracotta.withValues(alpha: 0.12) : Colors.transparent),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Stack(
@@ -211,7 +213,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           style: GoogleFonts.dmSans(
                             fontSize: 13,
                             fontWeight: (isToday || isSel) ? FontWeight.w700 : FontWeight.w400,
-                            color: isSel ? Colors.white : isWeekend ? AppColors.terracotta.withOpacity(0.7) : text,
+                            color: isSel ? Colors.white : isWeekend ? AppColors.terracotta.withValues(alpha: 0.7) : text,
                           ),
                         ),
                         if (hasEvent && !isSel)
@@ -262,8 +264,8 @@ class _CalEventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final cardBg = isDark ? AppColors.darkCard : AppColors.lightSurface;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final cardBg = isDark ? AppColors.darkCard : AppColors.lightBg;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final catColor = AppColors.categoryColor(event.category);
 
@@ -315,8 +317,8 @@ class _CalTodoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final cardBg = isDark ? AppColors.darkCard : AppColors.lightSurface;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final cardBg = isDark ? AppColors.darkCard : AppColors.lightBg;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final catColor = AppColors.categoryColor(group.category);
 
@@ -355,7 +357,7 @@ class _CalTodoTile extends StatelessWidget {
                     value: group.total > 0 ? group.doneCount / group.total : 0,
                     strokeWidth: 2.5,
                     color: AppColors.terracotta,
-                    backgroundColor: AppColors.terracotta.withOpacity(0.15),
+                    backgroundColor: AppColors.terracotta.withValues(alpha: 0.15),
                   ),
                   Text(
                     '${group.doneCount}',

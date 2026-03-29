@@ -21,18 +21,18 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const _tabLabels = ['События', 'Заметки', 'Дела', 'Календарь'];
+  static const _tabLabels = ['Календарь', 'События', 'Заметки', 'Задачи'];
   static const _tabIcons = [
+    Icons.calendar_month_outlined,
     Icons.event_outlined,
     Icons.description_outlined,
     Icons.checklist_rounded,
-    Icons.calendar_month_outlined,
   ];
   static const _tabActiveIcons = [
+    Icons.calendar_month_rounded,
     Icons.event_rounded,
     Icons.description_rounded,
     Icons.checklist_rounded,
-    Icons.calendar_month_rounded,
   ];
 
   @override
@@ -41,25 +41,28 @@ class _HomeShellState extends State<HomeShell> {
     final isDark = state.darkMode;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkNavDim : AppColors.lightNavDim;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final accent = isDark ? AppColors.terracotta : AppColors.terracottaLight;
+    final navBg = isDark ? AppColors.darkNavBg : AppColors.lightSurface;
     final tab = state.currentTab;
 
     // Current view mode for the active tab
     int currentView() {
       switch (tab) {
-        case 0: return state.eventsView;
-        case 1: return state.notesView;
-        case 2: return state.todosView;
+        case 0: return 1; // calendar
+        case 1: return state.eventsView;
+        case 2: return state.notesView;
+        case 3: return state.todosView;
         default: return 1;
       }
     }
 
     void setView(int v) {
       switch (tab) {
-        case 0: state.eventsView = v; break;
-        case 1: state.notesView = v; break;
-        case 2: state.todosView = v; break;
+        case 1: state.eventsView = v; break;
+        case 2: state.notesView = v; break;
+        case 3: state.todosView = v; break;
       }
       state.refresh();
     }
@@ -68,7 +71,7 @@ class _HomeShellState extends State<HomeShell> {
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
         key: _scaffoldKey,
-        backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
+        backgroundColor: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
         drawer: const AppSidebar(),
         appBar: AppBar(
           backgroundColor: surface,
@@ -82,21 +85,20 @@ class _HomeShellState extends State<HomeShell> {
           title: Text(
             _tabLabels[tab],
             style: GoogleFonts.fraunces(
-              fontSize: 17, fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic, color: text,
+              fontSize: 15, fontWeight: FontWeight.w600,
+              fontStyle: FontStyle.normal, color: text,
             ),
           ),
           centerTitle: true,
           actions: [
-            if (tab != 3)
+            if (tab != 0)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Filter button (notes only for now)
-                    if (tab == 1)
-                      _FilterButton(isDark: isDark, text: text, textSec: textSec, surface: surface),
+                    if (tab == 2 || tab == 3)
+                      _FilterButton(isDark: isDark, text: text, textSec: textSec, surface: surface, tab: tab),
                     const SizedBox(width: 4),
                     ViewSwitcher(current: currentView(), onChanged: setView),
                   ],
@@ -113,24 +115,28 @@ class _HomeShellState extends State<HomeShell> {
           child: IndexedStack(
             index: tab,
             children: const [
+              CalendarScreen(),
               EventsScreen(),
               NotesScreen(),
               TodosScreen(),
-              CalendarScreen(),
             ],
           ),
         ),
-        floatingActionButton: tab != 3
-            ? FloatingActionButton(
-                onPressed: () => _handleFab(context, state),
-                backgroundColor: AppColors.terracotta,
-                elevation: 3,
-                child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+        floatingActionButton: tab != 0
+            ? SizedBox(
+                width: 44, height: 44,
+                child: FloatingActionButton(
+                  onPressed: () => _handleFab(context, state),
+                  backgroundColor: accent,
+                  elevation: 6,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                ),
               )
             : null,
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: surface,
+            color: navBg,
             border: Border(top: BorderSide(color: divider, width: 0.5)),
           ),
           child: SafeArea(
@@ -149,25 +155,17 @@ class _HomeShellState extends State<HomeShell> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: active ? AppColors.terracotta.withOpacity(0.12) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              active ? _tabActiveIcons[i] : _tabIcons[i],
-                              size: 20,
-                              color: active ? AppColors.terracotta : textSec,
-                            ),
+                          Icon(
+                            active ? _tabActiveIcons[i] : _tabIcons[i],
+                            size: 22,
+                            color: active ? accent : textSec,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             _tabLabels[i],
                             style: GoogleFonts.dmSans(
-                              fontSize: 9,
-                              fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                              fontSize: 9.5,
+                              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                               color: active ? AppColors.terracotta : textSec,
                             ),
                           ),
@@ -185,20 +183,29 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _handleFab(BuildContext context, AppState state) {
+    // Pass the active filter as initial category (null if 'Все')
+    final notesInit  = state.notesFilter  == 'Все' ? '' : state.notesFilter;
+    final todosInit  = state.todosFilter  == 'Все' ? '' : state.todosFilter;
+    final eventsInit = state.eventsFilter == 'Все' ? '' : state.eventsFilter;
+
     switch (state.currentTab) {
-      case 0:
-        showModalBottomSheet(
-          context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-          builder: (_) => const EventEditorSheet(),
+      case 1:
+        showDialog(
+          context: context,
+          barrierColor: Colors.black.withValues(alpha: 0.4),
+          builder: (_) => EventEditorDialog(initialCategory: eventsInit),
         );
         break;
-      case 1:
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
-        break;
       case 2:
-        showModalBottomSheet(
-          context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-          builder: (_) => const TodoEditorSheet(),
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => NoteEditorScreen(initialCategory: notesInit),
+        ));
+        break;
+      case 3:
+        showDialog(
+          context: context,
+          barrierColor: Colors.black.withValues(alpha: 0.4),
+          builder: (_) => TodoEditorDialog(initialCategory: todosInit),
         );
         break;
     }
@@ -212,17 +219,26 @@ class _HamburgerIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDark ? AppColors.darkText : AppColors.lightText;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _bar(color, 15),
-        const SizedBox(height: 4),
-        _bar(color, 10),
-        const SizedBox(height: 4),
-        _bar(color, 15),
-      ],
+    final bg  = isDark ? AppColors.darkHamBg  : AppColors.lightHamBg;
+    final bd  = isDark ? AppColors.darkHamBd  : AppColors.lightHamBd;
+    final sp  = isDark ? AppColors.darkHamSp  : AppColors.lightHamSp;
+    return Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: bd, width: 1),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _bar(sp, 15),
+          const SizedBox(height: 4),
+          _bar(sp, 10),
+          const SizedBox(height: 4),
+          _bar(sp, 15),
+        ],
+      ),
     );
   }
 
@@ -238,18 +254,21 @@ class _FilterButton extends StatelessWidget {
   final Color text;
   final Color textSec;
   final Color surface;
+  final int tab; // 2=notes, 3=todos
   const _FilterButton({
     required this.isDark,
     required this.text,
     required this.textSec,
     required this.surface,
+    required this.tab,
   });
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final cardBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
-    final isManual = state.notesSort == 'manual';
+    final currentSort = tab == 3 ? state.todosSort : state.notesSort;
+    final isManual = currentSort == 'manual';
 
     return GestureDetector(
       onTapDown: (details) async {
@@ -269,13 +288,17 @@ class _FilterButton extends StatelessWidget {
           position: position,
           items: [
             _menuItem('date', 'По дате', Icons.calendar_today_rounded,
-                state.notesSort == 'date', isDark, text, textSec, surface),
+                currentSort == 'date', isDark, text, textSec, surface),
             _menuItem('manual', 'Вручную', Icons.drag_indicator_rounded,
-                state.notesSort == 'manual', isDark, text, textSec, surface),
+                currentSort == 'manual', isDark, text, textSec, surface),
           ],
         );
         if (selected != null) {
-          state.notesSort = selected;
+          if (tab == 3) {
+            state.todosSort = selected;
+          } else {
+            state.notesSort = selected;
+          }
         }
       },
       child: Container(
@@ -287,7 +310,7 @@ class _FilterButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
-          Icons.filter_list_rounded,
+          Icons.swap_vert_rounded,
           size: 16,
           color: isManual ? AppColors.terracotta : AppColors.terracotta.withValues(alpha: 0.5),
         ),

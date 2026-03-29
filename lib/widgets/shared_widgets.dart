@@ -29,15 +29,17 @@ class CategoryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppColors.categoryColor(label);
+    final isEmpty = label.isEmpty;
+    final color = isEmpty ? AppColors.catNone : AppColors.categoryColor(label);
+    final display = isEmpty ? '–' : label.toUpperCase();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        label.toUpperCase(),
+        display,
         style: GoogleFonts.dmSans(
           fontSize: 8, fontWeight: FontWeight.w800,
           color: color, letterSpacing: 0.5,
@@ -140,28 +142,31 @@ class AppSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? const Color(0x4DE6AF78) : const Color(0x73785028);
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCardAlt,
+        color: isDark ? AppColors.darkSearchBg : AppColors.lightSearchBg,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkSearchBd : AppColors.lightSearchBd,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, size: 16, color: AppColors.terracotta.withOpacity(0.5)),
+          Icon(Icons.search_rounded, size: 16, color: iconColor),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               onChanged: onChanged,
-              style: GoogleFonts.dmSans(fontSize: 13),
+              style: GoogleFonts.dmSans(fontSize: 14, color: textColor),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 filled: false,
                 hintText: hint,
-                hintStyle: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                ),
+                hintStyle: GoogleFonts.dmSans(fontSize: 14, color: iconColor),
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
@@ -224,7 +229,7 @@ class CategoryFilterRow extends StatelessWidget {
                     const SizedBox(width: 5),
                   ],
                   Text(
-                    cat,
+                    cat.isEmpty ? '–' : cat,
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,

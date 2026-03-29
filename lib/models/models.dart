@@ -10,7 +10,7 @@ class Note {
     required this.id,
     required this.title,
     this.body = '',
-    this.category = 'Личное',
+    this.category = '',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -26,7 +26,7 @@ class Note {
     id: j['id'],
     title: j['title'],
     body: j['body'] ?? '',
-    category: j['category'] ?? 'Личное',
+    category: j['category'] ?? '',
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
   );
 }
@@ -52,7 +52,7 @@ class TodoGroup {
   TodoGroup({
     required this.id,
     required this.name,
-    this.category = 'Дом',
+    this.category = '',
     List<TodoItem>? items,
     DateTime? createdAt,
   })  : items = items ?? [],
@@ -72,7 +72,7 @@ class TodoGroup {
   factory TodoGroup.fromJson(Map<String, dynamic> j) => TodoGroup(
     id: j['id'],
     name: j['name'],
-    category: j['category'] ?? 'Дом',
+    category: j['category'] ?? '',
     items: (j['items'] as List? ?? []).map((e) => TodoItem.fromJson(e)).toList(),
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
   );
@@ -96,7 +96,7 @@ class AppEvent {
     required this.id,
     required this.title,
     this.body = '',
-    this.category = 'Личное',
+    this.category = '',
     this.reminderDate,
     this.repeat = RepeatInterval.none,
     this.customDays,
@@ -121,7 +121,7 @@ class AppEvent {
     id: j['id'],
     title: j['title'],
     body: j['body'] ?? '',
-    category: j['category'] ?? 'Личное',
+    category: j['category'] ?? '',
     reminderDate: j['reminderDate'] != null ? DateTime.tryParse(j['reminderDate']) : null,
     repeat: RepeatInterval.values[j['repeat'] ?? 0],
     customDays: j['customDays'],

@@ -35,7 +35,7 @@ class _EventsScreenState extends State<EventsScreen> {
               AppSearchBar(onChanged: (q) => setState(() => _query = q), hint: 'Поиск событий...'),
               const SizedBox(height: 10),
               CategoryFilterRow(
-                categories: AppState.eventCategories,
+                categories: state.eventCategories,
                 selected: state.eventsFilter,
                 onSelect: (c) { state.eventsFilter = c; state.refresh(); },
               ),
@@ -60,7 +60,7 @@ class _EventsScreenState extends State<EventsScreen> {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.event_outlined, size: 48, color: AppColors.terracotta.withOpacity(0.3)),
+        Icon(Icons.event_outlined, size: 48, color: AppColors.terracotta.withValues(alpha: 0.3)),
         const SizedBox(height: 12),
         Text('Нет событий', style: GoogleFonts.fraunces(
           fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
@@ -74,12 +74,18 @@ class _EventsScreenState extends State<EventsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: events.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _EventCard(
-        event: events[i],
-        showTag: state.eventsFilter == 'Все',
-        view: 1,
-        onTap: () => _openEditor(context, events[i]),
-        onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+      itemBuilder: (ctx, i) => _SwipableCard(
+        key: ValueKey(events[i].id),
+        itemKey: ValueKey('del-event-${events[i].id}'),
+        padding: const EdgeInsets.only(bottom: 10),
+        onDelete: () => state.deleteEvent(events[i].id),
+        child: _EventCard(
+          event: events[i],
+          showTag: state.eventsFilter == 'Все',
+          view: 1,
+          onTap: () => _openEditor(context, events[i]),
+          onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+        ),
       ),
     );
   }
@@ -116,17 +122,92 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   void _openEditor(BuildContext context, [AppEvent? event]) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => EventEditorSheet(event: event),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (_) => EventEditorDialog(event: event),
+    );
+  }
+}
+
+
+// ─── Swipable Card ─────────────────────────────────────────
+class _SwipableCard extends StatelessWidget {
+  final Key itemKey;
+  final Widget child;
+  final VoidCallback onDelete;
+  final EdgeInsets padding;
+  const _SwipableCard({super.key, required this.itemKey, required this.child, required this.onDelete, this.padding = EdgeInsets.zero});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.watch<AppState>().darkMode;
+    return Dismissible(
+      key: itemKey,
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+          context: context,
+          barrierColor: Colors.black.withValues(alpha: 0.4),
+          builder: (ctx) {
+            final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+            final text = isDark ? AppColors.darkText : AppColors.lightText;
+            final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+            return Dialog(
+              backgroundColor: bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text)),
+                    const SizedBox(height: 8),
+                    Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
+                    const SizedBox(height: 20),
+                    Row(children: [
+                      Expanded(child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(color: isDark ? AppColors.darkBg2 : AppColors.lightBg2, borderRadius: BorderRadius.circular(12)),
+                          alignment: Alignment.center,
+                          child: Text('Отмена', style: GoogleFonts.dmSans(fontSize: 13, color: textSec, fontWeight: FontWeight.w600)),
+                        ),
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(12)),
+                          alignment: Alignment.center,
+                          child: Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      )),
+                    ]),
+                  ],
+                ),
+              ),
+            );
+          },
+        ) ?? false;
+      },
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        margin: padding,
+        decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(18)),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+      ),
+      child: Padding(padding: padding, child: child),
     );
   }
 }
 
 // ─── Event Card ────────────────────────────────────────────
-class _EventCard extends StatelessWidget {
+class _EventCard extends StatefulWidget {
   final AppEvent event;
   final bool showTag;
   final int view;
@@ -142,14 +223,27 @@ class _EventCard extends StatelessWidget {
   });
 
   @override
+  State<_EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<_EventCard> {
+  bool _bodyExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final event = widget.event;
+    final showTag = widget.showTag;
+    final view = widget.view;
+    final onTap = widget.onTap;
+    final onCheckTask = widget.onCheckTask;
+
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final cardBg = isDark ? AppColors.darkCard : AppColors.lightSurface;
+    final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
-    final catColor = AppColors.categoryColor(event.category);
+    final catColor = state.folderColor(event.category);
     final maxTasks = view == 2 ? 3 : event.tasks.length;
     final tasks = event.tasks.take(maxTasks).toList();
     final repeatStr = repeatLabel(event.repeat, event.customDays);
@@ -182,7 +276,7 @@ class _EventCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-          border: Border.all(color: divider, width: 0.5),
+          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 1),
         ),
         child: Stack(
           children: [
@@ -207,15 +301,37 @@ class _EventCard extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 60),
                     child: Text(event.body, style: GoogleFonts.dmSans(
                       fontSize: view == 2 ? 11 : 12, color: textSec, height: 1.4,
-                    ), maxLines: view == 2 ? 2 : null, overflow: view == 2 ? TextOverflow.ellipsis : null),
+                    ), maxLines: view == 1 ? (_bodyExpanded ? 10 : 3) : 2, overflow: TextOverflow.ellipsis),
                   ),
+                  if (view == 1)
+                    LayoutBuilder(builder: (ctx, constraints) {
+                      final tp = TextPainter(
+                        text: TextSpan(
+                          text: event.body,
+                          style: GoogleFonts.dmSans(fontSize: 12, height: 1.4),
+                        ),
+                        maxLines: 3,
+                        textDirection: TextDirection.ltr,
+                      )..layout(maxWidth: constraints.maxWidth);
+                      if (!tp.didExceedMaxLines) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _bodyExpanded = !_bodyExpanded),
+                          child: Text(
+                            _bodyExpanded ? 'Свернуть' : 'Ещё',
+                            style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
+                          ),
+                        ),
+                      );
+                    }),
                 ],
                 if (event.reminderDate != null) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.terracotta.withOpacity(0.12),
+                      color: AppColors.terracotta.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -229,7 +345,7 @@ class _EventCard extends StatelessWidget {
                         ),
                         if (repeatStr.isNotEmpty) ...[
                           const SizedBox(width: 6),
-                          Text('· $repeatStr', style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta.withOpacity(0.7))),
+                          Text('· $repeatStr', style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta.withValues(alpha: 0.7))),
                         ],
                       ],
                     ),
@@ -270,15 +386,15 @@ class _EventCard extends StatelessWidget {
                 ],
               ],
             ),
-            Positioned(
-              top: 0, right: 0,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (showTag) CategoryBadge(label: event.category),
-                ],
+            if (showTag)
+              Positioned(
+                top: 0, right: 0,
+                child: CategoryBadge(
+                  label: event.category.length > 7
+                      ? event.category.substring(0, 7)
+                      : event.category,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -286,25 +402,23 @@ class _EventCard extends StatelessWidget {
   }
 }
 
-// ─── Event Editor Sheet ────────────────────────────────────
-class EventEditorSheet extends StatefulWidget {
+// ─── Event Editor Dialog (center) ────────────────────────
+class EventEditorDialog extends StatefulWidget {
   final AppEvent? event;
-  const EventEditorSheet({super.key, this.event});
+  final String initialCategory;
+  const EventEditorDialog({super.key, this.event, this.initialCategory = ''});
 
   @override
-  State<EventEditorSheet> createState() => _EventEditorSheetState();
+  State<EventEditorDialog> createState() => _EventEditorDialogState();
 }
 
-class _EventEditorSheetState extends State<EventEditorSheet> {
+class _EventEditorDialogState extends State<EventEditorDialog> {
   late TextEditingController _titleCtrl;
   late TextEditingController _bodyCtrl;
   late String _category;
   DateTime? _reminderDate;
   RepeatInterval _repeat = RepeatInterval.none;
   int? _customDays;
-  late List<TextEditingController> _taskCtrls;
-  late List<bool> _taskDone;
-  final List<FocusNode> _focusNodes = [];
   final _customDaysCtrl = TextEditingController();
 
   @override
@@ -313,15 +427,11 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     final e = widget.event;
     _titleCtrl = TextEditingController(text: e?.title ?? '');
     _bodyCtrl = TextEditingController(text: e?.body ?? '');
-    _category = e?.category ?? 'Личное';
+    _category = e?.category ?? widget.initialCategory ?? '';
     _reminderDate = e?.reminderDate;
     _repeat = e?.repeat ?? RepeatInterval.none;
     _customDays = e?.customDays;
     if (_customDays != null) _customDaysCtrl.text = _customDays.toString();
-    final tasks = e?.tasks ?? [];
-    _taskCtrls = tasks.map((t) => TextEditingController(text: t.text)).toList();
-    _taskDone = tasks.map((t) => t.done).toList();
-    _focusNodes.addAll(List.generate(_taskCtrls.length, (_) => FocusNode()));
   }
 
   @override
@@ -329,51 +439,163 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     _customDaysCtrl.dispose();
-    for (var c in _taskCtrls) c.dispose();
-    for (var f in _focusNodes) f.dispose();
     super.dispose();
-  }
-
-  void _addTask() {
-    setState(() {
-      _taskCtrls.add(TextEditingController());
-      _taskDone.add(false);
-      _focusNodes.add(FocusNode());
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusNodes.last.requestFocus());
   }
 
   Future<void> _pickDate() async {
     final isDark = context.read<AppState>().darkMode;
-    final dt = await showDatePicker(
+    final result = await showDialog<DateTime>(
       context: context,
-      initialDate: _reminderDate ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-      builder: (ctx, child) => Theme(
-        data: buildTheme(isDark),
-        child: child!,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (_) => _CustomDateTimePicker(
+        initial: _reminderDate ?? DateTime.now().add(const Duration(days: 1)),
+        isDark: isDark,
       ),
     );
-    if (dt != null && mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_reminderDate ?? DateTime.now()),
-      );
-      if (time != null && mounted) {
-        setState(() => _reminderDate = DateTime(dt.year, dt.month, dt.day, time.hour, time.minute));
-      }
+    if (result != null && mounted) {
+      setState(() => _reminderDate = result);
+    }
+  }
+
+  void _showRepeatPicker() {
+    final isDark = context.read<AppState>().darkMode;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    final labels = {
+      RepeatInterval.none: 'Не повторять',
+      RepeatInterval.daily: 'Каждый день',
+      RepeatInterval.weekly: 'Каждую неделю',
+      RepeatInterval.monthly: 'Каждый месяц',
+      RepeatInterval.yearly: 'Каждый год',
+      RepeatInterval.custom: 'Через N дней',
+    };
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (ctx) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Text('Повторять', style: GoogleFonts.fraunces(
+                  fontSize: 16, fontWeight: FontWeight.w600, color: text,
+                )),
+              ),
+              Divider(color: divider, height: 1),
+              ...labels.entries.map((e) {
+                final sel = _repeat == e.key;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _repeat = e.key);
+                    Navigator.pop(ctx);
+                    if (e.key == RepeatInterval.custom) _showCustomDaysPicker();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    color: Colors.transparent,
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(e.value, style: GoogleFonts.dmSans(
+                          fontSize: 14, color: sel ? AppColors.terracotta : text,
+                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                        ))),
+                        if (sel) Icon(Icons.check_rounded, size: 16, color: AppColors.terracotta),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCustomDaysPicker() {
+    final isDark = context.read<AppState>().darkMode;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (ctx) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Через сколько дней?', style: GoogleFonts.fraunces(
+                fontSize: 16, fontWeight: FontWeight.w600, color: text,
+              )),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _customDaysCtrl,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                style: GoogleFonts.dmSans(fontSize: 20, color: text),
+                decoration: InputDecoration(
+                  suffixText: 'дней',
+                  suffixStyle: GoogleFonts.dmSans(fontSize: 14, color: text),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _customDays = int.tryParse(_customDaysCtrl.text));
+                    Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.terracotta,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Готово', style: GoogleFonts.dmSans(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white,
+                    )),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _repeatLabel {
+    switch (_repeat) {
+      case RepeatInterval.none: return 'Не повторять';
+      case RepeatInterval.daily: return 'Каждый день';
+      case RepeatInterval.weekly: return 'Каждую неделю';
+      case RepeatInterval.monthly: return 'Каждый месяц';
+      case RepeatInterval.yearly: return 'Каждый год';
+      case RepeatInterval.custom:
+        final d = _customDays ?? int.tryParse(_customDaysCtrl.text);
+        return d != null ? 'Через $d дней' : 'Через N дней';
     }
   }
 
   void _save() {
     final state = context.read<AppState>();
-    final tasks = _taskCtrls.asMap().entries
-        .where((e) => e.value.text.trim().isNotEmpty)
-        .map((e) => EventTask(text: e.value.text.trim(), done: _taskDone[e.key]))
-        .toList();
     final customD = _repeat == RepeatInterval.custom ? int.tryParse(_customDaysCtrl.text) : null;
-
     if (widget.event != null) {
       widget.event!
         ..title = _titleCtrl.text.trim().isEmpty ? 'Событие' : _titleCtrl.text.trim()
@@ -382,7 +604,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
         ..reminderDate = _reminderDate
         ..repeat = _repeat
         ..customDays = customD
-        ..tasks = tasks;
+        ..tasks = widget.event!.tasks; // сохраняем существующие задачи
       state.updateEvent(widget.event!);
     } else {
       state.addEvent(AppEvent(
@@ -393,7 +615,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
         reminderDate: _reminderDate,
         repeat: _repeat,
         customDays: customD,
-        tasks: tasks,
+        tasks: [],
       ));
     }
     Navigator.pop(context);
@@ -410,279 +632,532 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     final isDark = state.darkMode;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final textHint = isDark ? const Color(0x4DE6AF78) : const Color(0x6E785028);
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
-    final repeatLabels = {
-      RepeatInterval.none: 'Не повторять',
-      RepeatInterval.daily: 'Каждый день',
-      RepeatInterval.weekly: 'Каждую неделю',
-      RepeatInterval.monthly: 'Каждый месяц',
-      RepeatInterval.yearly: 'Каждый год',
-      RepeatInterval.custom: 'Через N дней',
-    };
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-        decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: divider, borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _titleCtrl,
-                      style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text),
-                      decoration: InputDecoration(
-                        filled: false, border: InputBorder.none,
-                        hintText: 'Название события',
-                        hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textSec.withOpacity(0.4)),
-                      ),
+    return Dialog(
+      backgroundColor: bg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Шапка ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _titleCtrl,
+                    autofocus: widget.event == null,
+                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text),
+                    decoration: InputDecoration(
+                      filled: false, border: InputBorder.none,
+                      hintText: 'Название события',
+                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint),
+                      contentPadding: EdgeInsets.zero, isDense: true,
                     ),
                   ),
-                  if (widget.event != null)
-                    IconButton(
-                      icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withOpacity(0.7), size: 20),
-                      onPressed: _delete,
-                    ),
-                ],
-              ),
-            ),
-            // Category
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: AppState.eventCategories.skip(1).map((cat) {
-                    final sel = _category == cat;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _category = cat),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: sel ? AppColors.categoryColor(cat) : (isDark ? AppColors.darkCard : AppColors.lightCardAlt),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(cat, style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: sel ? Colors.white : textSec)),
-                        ),
-                      ),
-                    );
-                  }).toList(),
                 ),
-              ),
+                if (widget.event != null)
+                  IconButton(
+                    icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.7), size: 20),
+                    onPressed: _delete,
+                  ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: textSec, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Divider(color: divider, height: 1),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Description
-                    TextField(
-                      controller: _bodyCtrl,
-                      style: GoogleFonts.dmSans(fontSize: 13, color: text),
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        filled: false, border: InputBorder.none,
-                        hintText: 'Описание...',
-                        hintStyle: GoogleFonts.dmSans(fontSize: 13, color: textSec.withOpacity(0.4)),
+          ),
+          // ── Категория ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ['', ...context.read<AppState>().eventFolders].map((cat) {
+                  final sel = _category == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _category = cat),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: sel ? state.folderColor(cat) : fieldBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(cat.isEmpty ? '–' : cat, style: GoogleFonts.dmSans(
+                          fontSize: 11, fontWeight: FontWeight.w600,
+                          color: sel ? Colors.white : textSec,
+                        )),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    // Reminder date
-                    _Section(label: 'Напоминание', isDark: isDark, child: GestureDetector(
-                      onTap: _pickDate,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkCard : AppColors.lightCardAlt,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.notifications_outlined, size: 16, color: AppColors.terracotta),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _reminderDate != null ? formatDateTime(_reminderDate) : 'Выбрать дату и время',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  color: _reminderDate != null ? text : textSec,
-                                ),
-                              ),
-                            ),
-                            if (_reminderDate != null)
-                              GestureDetector(
-                                onTap: () => setState(() => _reminderDate = null),
-                                child: Icon(Icons.close_rounded, size: 16, color: textSec),
-                              ),
-                          ],
-                        ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Divider(color: divider, height: 1),
+          const SizedBox(height: 12),
+          // ── Описание ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              controller: _bodyCtrl,
+              style: GoogleFonts.dmSans(fontSize: 13, color: text),
+              maxLines: 3,
+              minLines: 1,
+              decoration: InputDecoration(
+                filled: false, border: InputBorder.none,
+                hintText: 'Описание...',
+                hintStyle: GoogleFonts.dmSans(fontSize: 13, color: textHint),
+                contentPadding: EdgeInsets.zero, isDense: true,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // ── Поля Напоминание / Повтор ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                // Напоминание
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _pickDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: fieldBg,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    )),
-                    const SizedBox(height: 12),
-                    // Repeat
-                    _Section(label: 'Повторять', isDark: isDark, child: Column(
-                      children: [
-                        Wrap(
-                          spacing: 8, runSpacing: 8,
-                          children: repeatLabels.entries.map((e) {
-                            final sel = _repeat == e.key;
-                            return GestureDetector(
-                              onTap: () => setState(() => _repeat = e.key),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: sel ? AppColors.terracotta : (isDark ? AppColors.darkCard : AppColors.lightCardAlt),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(e.value, style: GoogleFonts.dmSans(
-                                  fontSize: 11, fontWeight: FontWeight.w600,
-                                  color: sel ? Colors.white : textSec,
-                                )),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        if (_repeat == RepeatInterval.custom) ...[
-                          const SizedBox(height: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('НАПОМИНАНИЕ', style: GoogleFonts.dmSans(
+                            fontSize: 8, fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1, color: AppColors.terracotta,
+                          )),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
-                              Text('Через ', style: GoogleFonts.dmSans(fontSize: 13, color: text)),
-                              SizedBox(
-                                width: 60,
-                                child: TextField(
-                                  controller: _customDaysCtrl,
-                                  keyboardType: TextInputType.number,
-                                  style: GoogleFonts.dmSans(fontSize: 13, color: text),
-                                  decoration: InputDecoration(
-                                    hintText: '7',
-                                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: textSec),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              Icon(Icons.notifications_outlined, size: 13, color: _reminderDate != null ? AppColors.terracotta : textSec),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _reminderDate != null ? formatDateTime(_reminderDate) : 'Не задано',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: _reminderDate != null ? text : textSec,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(' дней', style: GoogleFonts.dmSans(fontSize: 13, color: text)),
+                              if (_reminderDate != null)
+                                GestureDetector(
+                                  onTap: () => setState(() => _reminderDate = null),
+                                  child: Icon(Icons.close_rounded, size: 13, color: textSec),
+                                ),
                             ],
                           ),
                         ],
-                      ],
-                    )),
-                    const SizedBox(height: 12),
-                    // Tasks
-                    _Section(label: 'Задачи', isDark: isDark, child: Column(
-                      children: [
-                        ..._taskCtrls.asMap().entries.map((e) {
-                          final i = e.key;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => setState(() => _taskDone[i] = !_taskDone[i]),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
-                                    width: 18, height: 18,
-                                    decoration: BoxDecoration(
-                                      color: _taskDone[i] ? AppColors.terracotta : Colors.transparent,
-                                      border: Border.all(color: _taskDone[i] ? AppColors.terracotta : divider, width: 1.5),
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: _taskDone[i] ? const Icon(Icons.check_rounded, size: 11, color: Colors.white) : null,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _taskCtrls[i],
-                                    focusNode: _focusNodes[i],
-                                    style: GoogleFonts.dmSans(fontSize: 13, color: text),
-                                    decoration: InputDecoration(
-                                      filled: false, border: InputBorder.none,
-                                      hintText: 'Задача...',
-                                      hintStyle: GoogleFonts.dmSans(fontSize: 13, color: textSec.withOpacity(0.4)),
-                                    ),
-                                    onSubmitted: (_) => _addTask(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                        GestureDetector(
-                          onTap: _addTask,
-                          child: Row(
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Повтор
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _showRepeatPicker,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: fieldBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('ПОВТОР', style: GoogleFonts.dmSans(
+                            fontSize: 8, fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1, color: AppColors.terracotta,
+                          )),
+                          const SizedBox(height: 4),
+                          Row(
                             children: [
-                              Icon(Icons.add_rounded, size: 18, color: AppColors.terracotta),
-                              const SizedBox(width: 8),
-                              Text('Добавить задачу', style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.terracotta)),
+                              Icon(Icons.repeat_rounded, size: 13, color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _repeatLabel,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: _repeat != RepeatInterval.none ? text : textSec,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                      ],
-                    )),
-                    const SizedBox(height: 16),
-                  ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // ── Кнопка сохранить ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: GestureDetector(
+              onTap: _save,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.terracotta,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Text('Сохранить', style: GoogleFonts.dmSans(
+                  fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
+                )),
               ),
             ),
-            Divider(color: divider, height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-              child: GestureDetector(
-                onTap: _save,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(color: AppColors.terracotta, borderRadius: BorderRadius.circular(14)),
-                  alignment: Alignment.center,
-                  child: Text('Сохранить', style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  final String label;
+// ─── Custom DateTime Picker (drum scroll) ─────────────────
+class _CustomDateTimePicker extends StatefulWidget {
+  final DateTime initial;
   final bool isDark;
-  final Widget child;
-  const _Section({required this.label, required this.isDark, required this.child});
+  const _CustomDateTimePicker({required this.initial, required this.isDark});
+
+  @override
+  State<_CustomDateTimePicker> createState() => _CustomDateTimePickerState();
+}
+
+class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
+  late int _day, _month, _year, _hour, _minute;
+
+  // Контроллеры для барабанов
+  late FixedExtentScrollController _dayCtrl;
+  late FixedExtentScrollController _monthCtrl;
+  late FixedExtentScrollController _yearCtrl;
+  late FixedExtentScrollController _hourCtrl;
+  late FixedExtentScrollController _minuteCtrl;
+
+  static const _months = [
+    'Январь','Февраль','Март','Апрель','Май','Июнь',
+    'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь',
+  ];
+
+  final int _startYear = DateTime.now().year;
+  final int _endYear   = DateTime.now().year + 10;
+
+  int _daysInMonth(int m, int y) => DateTime(y, m + 1, 0).day;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.initial;
+    _day   = d.day;
+    _month = d.month;
+    _year  = d.year;
+    _hour  = d.hour;
+    _minute = d.minute;
+
+    _dayCtrl    = FixedExtentScrollController(initialItem: _day - 1);
+    _monthCtrl  = FixedExtentScrollController(initialItem: _month - 1);
+    _yearCtrl   = FixedExtentScrollController(initialItem: _year - _startYear);
+    _hourCtrl   = FixedExtentScrollController(initialItem: _hour);
+    _minuteCtrl = FixedExtentScrollController(initialItem: _minute);
+  }
+
+  @override
+  void dispose() {
+    _dayCtrl.dispose(); _monthCtrl.dispose(); _yearCtrl.dispose();
+    _hourCtrl.dispose(); _minuteCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onDayChanged(int i) {
+    setState(() {
+      _day = i + 1;
+      final max = _daysInMonth(_month, _year);
+      if (_day > max) _day = max;
+    });
+  }
+
+  void _onMonthChanged(int i) {
+    setState(() {
+      _month = i + 1;
+      final max = _daysInMonth(_month, _year);
+      if (_day > max) {
+        _day = max;
+        _dayCtrl.jumpToItem(_day - 1);
+      }
+    });
+  }
+
+  void _onYearChanged(int i) {
+    setState(() {
+      _year = _startYear + i;
+      final max = _daysInMonth(_month, _year);
+      if (_day > max) {
+        _day = max;
+        _dayCtrl.jumpToItem(_day - 1);
+      }
+    });
+  }
+
+  Widget _drum({
+    required FixedExtentScrollController ctrl,
+    required int itemCount,
+    required String Function(int) label,
+    required ValueChanged<int> onChanged,
+    required bool isDark,
+    double width = 64,
+  }) {
+    final text    = isDark ? AppColors.darkText     : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final selBg   = isDark ? AppColors.darkBg2      : AppColors.lightBg2;
+
+    return SizedBox(
+      width: width,
+      height: 180,
+      child: Stack(
+        children: [
+          // Выделение центрального элемента
+          Center(
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: selBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          // Барабан
+          ListWheelScrollView.useDelegate(
+            controller: ctrl,
+            itemExtent: 44,
+            perspective: 0.003,
+            diameterRatio: 1.6,
+            physics: const FixedExtentScrollPhysics(),
+            onSelectedItemChanged: onChanged,
+            childDelegate: ListWheelChildBuilderDelegate(
+              childCount: itemCount,
+              builder: (ctx, i) {
+                final selected = ctrl.hasClients
+                    ? (ctrl.selectedItem == i)
+                    : false;
+                return Center(
+                  child: Text(
+                    label(i),
+                    style: GoogleFonts.fraunces(
+                      fontSize: selected ? 20 : 15,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? text : textSec,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          // Fade top
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                      (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Fade bottom
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                      (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: GoogleFonts.dmSans(
-            fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2,
-            color: AppColors.terracotta,
-          ),
+    final isDark  = widget.isDark;
+    final bg      = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text    = isDark ? AppColors.darkText    : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final divider = isDark ? AppColors.darkDivider  : AppColors.lightDivider;
+
+    return Dialog(
+      backgroundColor: bg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Заголовок
+            Text('Дата и время', style: GoogleFonts.fraunces(
+              fontSize: 17, fontWeight: FontWeight.w600, color: text,
+            )),
+            const SizedBox(height: 20),
+
+            // ── Барабаны даты ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // День
+                _drum(
+                  ctrl: _dayCtrl,
+                  itemCount: _daysInMonth(_month, _year),
+                  label: (i) => '${i + 1}',
+                  onChanged: _onDayChanged,
+                  isDark: isDark,
+                  width: 56,
+                ),
+                const SizedBox(width: 4),
+                // Месяц
+                _drum(
+                  ctrl: _monthCtrl,
+                  itemCount: 12,
+                  label: (i) => _months[i],
+                  onChanged: _onMonthChanged,
+                  isDark: isDark,
+                  width: 120,
+                ),
+                const SizedBox(width: 4),
+                // Год
+                _drum(
+                  ctrl: _yearCtrl,
+                  itemCount: _endYear - _startYear + 1,
+                  label: (i) => '${_startYear + i}',
+                  onChanged: _onYearChanged,
+                  isDark: isDark,
+                  width: 72,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            Divider(color: divider, height: 1),
+            const SizedBox(height: 12),
+
+            // ── Барабаны времени ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _drum(
+                  ctrl: _hourCtrl,
+                  itemCount: 24,
+                  label: (i) => i.toString().padLeft(2, '0'),
+                  onChanged: (i) => setState(() => _hour = i),
+                  isDark: isDark,
+                  width: 64,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(' : ', style: GoogleFonts.fraunces(
+                    fontSize: 22, fontWeight: FontWeight.w600, color: text)),
+                ),
+                _drum(
+                  ctrl: _minuteCtrl,
+                  itemCount: 60,
+                  label: (i) => i.toString().padLeft(2, '0'),
+                  onChanged: (i) => setState(() => _minute = i),
+                  isDark: isDark,
+                  width: 64,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Кнопки ──
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('Отмена', style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: textSec)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context,
+                        DateTime(_year, _month, _day, _hour, _minute)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.terracotta,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('Готово', style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        child,
-      ],
+      ),
     );
   }
 }

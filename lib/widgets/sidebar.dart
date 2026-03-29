@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../screens/folder_manager_screen.dart';
 
 class AppSidebar extends StatelessWidget {
   const AppSidebar({super.key});
@@ -11,34 +12,33 @@ class AppSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
-    final tabLabel = ['События', 'Заметки', 'Дела', 'Календарь'][state.currentTab];
+    final tabLabel = ['Календарь', 'События', 'Заметки', 'Задачи'][state.currentTab];
     final cats = [
-      AppState.eventCategories,
-      AppState.noteCategories,
-      AppState.todoCategories,
-      AppState.eventCategories,
+      <String>[],             // 0=Календарь — нет фильтра
+      state.eventCategories,  // 1=События
+      state.noteCategories,   // 2=Заметки
+      state.todoCategories,   // 3=Задачи
     ][state.currentTab].skip(1).toList(); // skip 'Все'
 
     String currentFilter() {
       switch (state.currentTab) {
-        case 0: return state.eventsFilter;
-        case 1: return state.notesFilter;
-        case 2: return state.todosFilter;
-        default: return state.eventsFilter;
+        case 1: return state.eventsFilter;
+        case 2: return state.notesFilter;
+        case 3: return state.todosFilter;
+        default: return '';
       }
     }
 
     void setFilter(String cat) {
       switch (state.currentTab) {
-        case 0: state.eventsFilter = cat; break;
-        case 1: state.notesFilter = cat; break;
-        case 2: state.todosFilter = cat; break;
-        default: state.eventsFilter = cat;
+        case 1: state.eventsFilter = cat; break;
+        case 2: state.notesFilter = cat; break;
+        case 3: state.todosFilter = cat; break;
       }
       state.refresh();
       Navigator.pop(context);
@@ -125,6 +125,21 @@ class AppSidebar extends StatelessWidget {
               },
             ),
 
+            // Folders
+            _sidebarItem(
+              context,
+              icon: Icons.folder_outlined,
+              label: 'Папки',
+              isDark: isDark,
+              onTap: () {
+                final tab = state.currentTab;
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => FolderManagerScreen(initialTab: tab),
+                ));
+              },
+            ),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Divider(color: divider, height: 1),
@@ -178,7 +193,7 @@ class AppSidebar extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
 
     return GestureDetector(
       onTap: onTap,
@@ -188,7 +203,7 @@ class AppSidebar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.terracotta.withOpacity(0.12)
+              ? AppColors.terracotta.withValues(alpha: 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -314,7 +329,7 @@ class _BottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
 
     return Padding(
@@ -389,7 +404,7 @@ class _ThemeOption extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: selected ? Colors.white : AppColors.terracotta.withOpacity(0.5),
+                color: selected ? Colors.white : AppColors.terracotta.withValues(alpha: 0.5),
                 size: 22,
               ),
               const SizedBox(height: 6),

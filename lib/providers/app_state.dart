@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/models.dart';
@@ -30,24 +31,59 @@ class AppState extends ChangeNotifier {
   String get notesSort => _notesSort;
   set notesSort(String v) { _notesSort = v; _saveViews(); notifyListeners(); }
 
+  String _todosSort = 'date';
+  String get todosSort => _todosSort;
+  set todosSort(String v) { _todosSort = v; _saveViews(); notifyListeners(); }
+
   // Manual order stored as list of ids
   List<String> _notesOrder = [];
   List<String> get notesOrder => _notesOrder;
 
+  List<String> _todosOrder = [];
+  List<String> get todosOrder => _todosOrder;
+
   void reorderNote(int oldIndex, int newIndex) {
-    // Rebuild _notesOrder from current notes if empty
-    if (_notesOrder.isEmpty) {
-      _notesOrder = notes.map((n) => n.id).toList();
-    }
+    if (_notesOrder.isEmpty) _notesOrder = notes.map((n) => n.id).toList();
     if (newIndex > oldIndex) newIndex -= 1;
     final id = _notesOrder.removeAt(oldIndex);
     _notesOrder.insert(newIndex, id);
-    _save();
-    notifyListeners();
+    _save(); notifyListeners();
+  }
+
+  void reorderNoteById(String fromId, String toId) {
+    if (_notesOrder.isEmpty) _notesOrder = notes.map((n) => n.id).toList();
+    for (final id in [fromId, toId]) {
+      if (!_notesOrder.contains(id)) _notesOrder.add(id);
+    }
+    final fromIdx = _notesOrder.indexOf(fromId);
+    _notesOrder.removeAt(fromIdx);
+    final toIdx = _notesOrder.indexOf(toId);
+    _notesOrder.insert(toIdx, fromId);
+    _save(); notifyListeners();
+  }
+
+  void reorderTodo(int oldIndex, int newIndex) {
+    if (_todosOrder.isEmpty) _todosOrder = todos.map((t) => t.id).toList();
+    if (newIndex > oldIndex) newIndex -= 1;
+    final id = _todosOrder.removeAt(oldIndex);
+    _todosOrder.insert(newIndex, id);
+    _save(); notifyListeners();
+  }
+
+  void reorderTodoById(String fromId, String toId) {
+    if (_todosOrder.isEmpty) _todosOrder = todos.map((t) => t.id).toList();
+    for (final id in [fromId, toId]) {
+      if (!_todosOrder.contains(id)) _todosOrder.add(id);
+    }
+    final fromIdx = _todosOrder.indexOf(fromId);
+    _todosOrder.removeAt(fromIdx);
+    final toIdx = _todosOrder.indexOf(toId);
+    _todosOrder.insert(toIdx, fromId);
+    _save(); notifyListeners();
   }
 
   // Tab
-  int currentTab = 1; // 0=events,1=notes,2=todos,3=calendar
+  int currentTab = 2; // 0=calendar,1=events,2=notes,3=todos
 
   // Active category filter
   String notesFilter = 'Все';
@@ -59,10 +95,167 @@ class AppState extends ChangeNotifier {
   List<TodoGroup> todos = [];
   List<AppEvent> events = [];
 
-  // Categories
-  static const noteCategories = ['Все', 'Работа', 'Личное', 'Идеи', 'Путешествия', 'Рецепты'];
-  static const todoCategories = ['Все', 'Работа', 'Дом', 'Личное', 'Спорт'];
-  static const eventCategories = ['Все', 'Работа', 'Личное', 'Праздники', 'Здоровье'];
+  // Folders (tags) — dynamic, per section, user-managed order
+  List<String> noteFolders  = ['Работа', 'Личное', 'Идеи', 'Путешествия', 'Рецепты'];
+  List<String> todoFolders  = ['Работа', 'Дом', 'Личное', 'Спорт'];
+  List<String> eventFolders = ['Работа', 'Личное', 'Праздники', 'Здоровье'];
+
+  // Hidden folders (not shown in filter rows)
+  Set<String> noteHidden  = {};
+  Set<String> todoHidden  = {};
+  Set<String> eventHidden = {};
+
+  // Custom folder colors: key = folderName, value = color hex string e.g. '#FF5733'
+  Map<String, String> folderColors = {};
+
+  Color folderColor(String name) {
+    if (folderColors.containsKey(name)) {
+      final hex = folderColors[name]!.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    }
+    return AppColors.categoryColor(name);
+  }
+
+  void setFolderColor(String name, Color color) {
+    final hex = color.value.toRadixString(16).substring(2).toUpperCase();
+    folderColors[name] = '#$hex';
+    _saveFolders(); notifyListeners();
+  }
+
+  // Special items order: list of ('Все','','<folder>',...)
+  // '' = no-tag (shown as '–')
+  List<String> noteFilterOrder  = ['Все', ''];
+  List<String> todoFilterOrder  = ['Все', ''];
+  List<String> eventFilterOrder = ['Все', ''];
+
+  List<String> get noteCategories  => _buildCategories(noteFilterOrder, noteFolders, noteHidden);
+  List<String> get todoCategories  => _buildCategories(todoFilterOrder, todoFolders, todoHidden);
+  List<String> get eventCategories => _buildCategories(eventFilterOrder, eventFolders, eventHidden);
+
+  List<String> _buildCategories(List<String> order, List<String> folders, Set<String> hidden) {
+    final result = <String>[];
+    // First add items in order that are not hidden
+    for (final item in order) {
+      if (!hidden.contains(item)) result.add(item);
+    }
+    // Then add any folders not yet in order and not hidden
+    for (final f in folders) {
+      if (!order.contains(f) && !hidden.contains(f)) result.add(f);
+    }
+    return result;
+  }
+
+  // Full list for manager (including hidden, including special)
+  List<String> get fullNoteFilterOrder  => [...noteFilterOrder,  ...noteFolders.where((f) => !noteFilterOrder.contains(f))];
+  List<String> get fullTodoFilterOrder  => [...todoFilterOrder,  ...todoFolders.where((f) => !todoFilterOrder.contains(f))];
+  List<String> get fullEventFilterOrder => [...eventFilterOrder, ...eventFolders.where((f) => !eventFilterOrder.contains(f))];
+
+  Set<String> hiddenFor(int tab) {
+    if (tab == 1) return noteHidden;
+    if (tab == 2) return todoHidden;
+    return eventHidden;
+  }
+
+  void toggleFolderVisibility(int tab, String folder) {
+    final h = hiddenFor(tab);
+    if (h.contains(folder)) h.remove(folder); else h.add(folder);
+    _saveFolders(); notifyListeners();
+  }
+
+  void reorderFilterItem(int tab, int oldIndex, int newIndex) {
+    List<String> order;
+    List<String> folders;
+    if (tab == 1) { order = noteFilterOrder; folders = noteFolders; }
+    else if (tab == 2) { order = todoFilterOrder; folders = todoFolders; }
+    else { order = eventFilterOrder; folders = eventFolders; }
+    // Build full list
+    final full = [...order, ...folders.where((f) => !order.contains(f))];
+    if (newIndex > oldIndex) newIndex -= 1;
+    final item = full.removeAt(oldIndex);
+    full.insert(newIndex, item);
+    // Save back: special items go to order, folders stay in folders
+    order.clear();
+    for (final f in full) {
+      if (f == 'Все' || f == '') order.add(f);
+      else if (folders.contains(f)) order.add(f);
+    }
+    _saveFolders(); notifyListeners();
+  }
+
+  // Folder CRUD
+  void addFolder(int tab, String name) {
+    if (name.trim().isEmpty) return;
+    final n = name.trim();
+    if (tab == 1 && !noteFolders.contains(n))  { noteFolders.add(n); }
+    if (tab == 2 && !todoFolders.contains(n))  { todoFolders.add(n); }
+    if (tab == 0 && !eventFolders.contains(n)) { eventFolders.add(n); }
+    _saveFolders(); notifyListeners();
+  }
+
+  void renameFolder(int tab, String old, String newName) {
+    if (newName.trim().isEmpty) return;
+    final n = newName.trim();
+    void rename(List<String> list) {
+      final i = list.indexOf(old);
+      if (i >= 0) list[i] = n;
+    }
+    // Also rename in existing items
+    if (tab == 1) {
+      rename(noteFolders); rename(noteFilterOrder);
+      for (var note in notes) { if (note.category == old) note.category = n; }
+    }
+    if (tab == 2) {
+      rename(todoFolders); rename(todoFilterOrder);
+      for (var t in todos) { if (t.category == old) t.category = n; }
+    }
+    if (tab == 0) {
+      rename(eventFolders); rename(eventFilterOrder);
+      for (var e in events) { if (e.category == old) e.category = n; }
+    }
+    _saveFolders(); _save(); notifyListeners();
+  }
+
+  void deleteFolder(int tab, String name) {
+    if (tab == 1) {
+      noteFolders.remove(name);
+      noteFilterOrder.remove(name);
+      for (var n in notes) { if (n.category == name) n.category = ''; }
+    }
+    if (tab == 2) {
+      todoFolders.remove(name);
+      todoFilterOrder.remove(name);
+      for (var t in todos) { if (t.category == name) t.category = ''; }
+    }
+    if (tab == 0) {
+      eventFolders.remove(name);
+      eventFilterOrder.remove(name);
+      for (var e in events) { if (e.category == name) e.category = ''; }
+    }
+    folderColors.remove(name);
+    if (notesFilter == name)  notesFilter = 'Все';
+    if (todosFilter == name)  todosFilter = 'Все';
+    if (eventsFilter == name) eventsFilter = 'Все';
+    _saveFolders(); _save(); notifyListeners();
+  }
+
+  void reorderFolders(int tab, int oldIndex, int newIndex) {
+    // reorderFolders теперь делегирует reorderFilterItem
+    reorderFilterItem(tab, oldIndex, newIndex);
+  }
+
+  Future<void> _saveFolders() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('noteFolders',     jsonEncode(noteFolders));
+    await prefs.setString('todoFolders',     jsonEncode(todoFolders));
+    await prefs.setString('eventFolders',    jsonEncode(eventFolders));
+    await prefs.setString('noteFilterOrder', jsonEncode(noteFilterOrder));
+    await prefs.setString('todoFilterOrder', jsonEncode(todoFilterOrder));
+    await prefs.setString('eventFilterOrder',jsonEncode(eventFilterOrder));
+    await prefs.setString('folderColors', jsonEncode(folderColors));
+    await prefs.setString('noteHidden',  jsonEncode(noteHidden.toList()));
+    await prefs.setString('todoHidden',  jsonEncode(todoHidden.toList()));
+    await prefs.setString('eventHidden', jsonEncode(eventHidden.toList()));
+  }
 
   AppState() {
     _load();
@@ -76,10 +269,31 @@ class AppState extends ChangeNotifier {
     _todosView = prefs.getInt('todosView') ?? 1;
     _eventsView = prefs.getInt('eventsView') ?? 1;
     _notesSort = prefs.getString('notesSort') ?? 'date';
+    _todosSort = prefs.getString('todosSort') ?? 'date';
     final orderJson = prefs.getString('notesOrder');
-    if (orderJson != null) {
-      _notesOrder = List<String>.from(jsonDecode(orderJson));
-    }
+    if (orderJson != null) _notesOrder = List<String>.from(jsonDecode(orderJson));
+    final todosOrderJson = prefs.getString('todosOrder');
+    if (todosOrderJson != null) _todosOrder = List<String>.from(jsonDecode(todosOrderJson));
+    final nfJson = prefs.getString('noteFolders');
+    if (nfJson != null) noteFolders = List<String>.from(jsonDecode(nfJson));
+    final tfJson = prefs.getString('todoFolders');
+    if (tfJson != null) todoFolders = List<String>.from(jsonDecode(tfJson));
+    final efJson = prefs.getString('eventFolders');
+    if (efJson != null) eventFolders = List<String>.from(jsonDecode(efJson));
+    final nfoJson = prefs.getString('noteFilterOrder');
+    if (nfoJson != null) noteFilterOrder = List<String>.from(jsonDecode(nfoJson));
+    final tfoJson = prefs.getString('todoFilterOrder');
+    if (tfoJson != null) todoFilterOrder = List<String>.from(jsonDecode(tfoJson));
+    final efoJson = prefs.getString('eventFilterOrder');
+    if (efoJson != null) eventFilterOrder = List<String>.from(jsonDecode(efoJson));
+    final fcJson = prefs.getString('folderColors');
+    if (fcJson != null) folderColors = Map<String, String>.from(jsonDecode(fcJson));
+    final nhJson = prefs.getString('noteHidden');
+    if (nhJson != null) noteHidden = Set<String>.from(jsonDecode(nhJson));
+    final thJson = prefs.getString('todoHidden');
+    if (thJson != null) todoHidden = Set<String>.from(jsonDecode(thJson));
+    final ehJson = prefs.getString('eventHidden');
+    if (ehJson != null) eventHidden = Set<String>.from(jsonDecode(ehJson));
 
     final notesJson = prefs.getString('notes');
     if (notesJson != null) {
@@ -170,6 +384,13 @@ class AppState extends ChangeNotifier {
     ];
   }
 
+  void toggleHidden(int tab, String key) {
+    final set = tab == 0 ? eventHidden : (tab == 1 ? noteHidden : todoHidden);
+    if (set.contains(key)) set.remove(key); else set.add(key);
+    refresh();
+    _save();
+  }
+
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('darkMode', _darkMode);
@@ -185,7 +406,9 @@ class AppState extends ChangeNotifier {
     await prefs.setInt('todosView', _todosView);
     await prefs.setInt('eventsView', _eventsView);
     await prefs.setString('notesSort', _notesSort);
+    await prefs.setString('todosSort', _todosSort);
     await prefs.setString('notesOrder', jsonEncode(_notesOrder));
+    await prefs.setString('todosOrder', jsonEncode(_todosOrder));
   }
 
   void refresh() {
@@ -249,7 +472,7 @@ class AppState extends ChangeNotifier {
 
   List<Note> filteredNotes(String query) {
     var result = notes.where((n) {
-      final matchCat = notesFilter == 'Все' || n.category == notesFilter;
+      final matchCat = notesFilter == 'Все' || (notesFilter == '' ? n.category.isEmpty : n.category == notesFilter);
       final matchQ = query.isEmpty ||
           n.title.toLowerCase().contains(query.toLowerCase()) ||
           n.body.toLowerCase().contains(query.toLowerCase());
@@ -272,16 +495,29 @@ class AppState extends ChangeNotifier {
   }
 
   List<TodoGroup> filteredTodos(String query) {
-    return todos.where((g) {
-      final matchCat = todosFilter == 'Все' || g.category == todosFilter;
+    var result = todos.where((g) {
+      final matchCat = todosFilter == 'Все' || (todosFilter == '' ? g.category.isEmpty : g.category == todosFilter);
       final matchQ = query.isEmpty || g.name.toLowerCase().contains(query.toLowerCase());
       return matchCat && matchQ;
     }).toList();
+    if (_todosSort == 'manual' && _todosOrder.isNotEmpty) {
+      result.sort((a, b) {
+        final ai = _todosOrder.indexOf(a.id);
+        final bi = _todosOrder.indexOf(b.id);
+        if (ai == -1 && bi == -1) return 0;
+        if (ai == -1) return 1;
+        if (bi == -1) return -1;
+        return ai.compareTo(bi);
+      });
+    } else {
+      result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return result;
   }
 
   List<AppEvent> filteredEvents(String query) {
     return events.where((e) {
-      final matchCat = eventsFilter == 'Все' || e.category == eventsFilter;
+      final matchCat = eventsFilter == 'Все' || (eventsFilter == '' ? e.category.isEmpty : e.category == eventsFilter);
       final matchQ = query.isEmpty || e.title.toLowerCase().contains(query.toLowerCase()) || e.body.toLowerCase().contains(query.toLowerCase());
       return matchCat && matchQ;
     }).toList();

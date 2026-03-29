@@ -17,7 +17,24 @@ class TodosScreen extends StatefulWidget {
 
 class _TodosScreenState extends State<TodosScreen> {
   String _query = '';
+  // compact view: which cards are expanded
   final Set<String> _expandedIds = {};
+
+  bool get _allExpanded {
+    final state = context.read<AppState>();
+    final todos = state.filteredTodos(_query);
+    return todos.isNotEmpty && todos.every((t) => _expandedIds.contains(t.id));
+  }
+
+  void _toggleAll(List<TodoGroup> todos) {
+    setState(() {
+      if (_allExpanded) {
+        _expandedIds.clear();
+      } else {
+        for (final t in todos) _expandedIds.add(t.id);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +53,7 @@ class _TodosScreenState extends State<TodosScreen> {
               AppSearchBar(onChanged: (q) => setState(() => _query = q), hint: 'Поиск...'),
               const SizedBox(height: 10),
               CategoryFilterRow(
-                categories: AppState.todoCategories,
+                categories: state.todoCategories,
                 selected: state.todosFilter,
                 onSelect: (c) { state.todosFilter = c; state.refresh(); },
               ),
@@ -61,7 +78,7 @@ class _TodosScreenState extends State<TodosScreen> {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.checklist_rounded, size: 48, color: AppColors.terracotta.withOpacity(0.3)),
+        Icon(Icons.checklist_rounded, size: 48, color: AppColors.terracotta.withValues(alpha: 0.3)),
         const SizedBox(height: 12),
         Text('Нет дел', style: GoogleFonts.fraunces(
           fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
@@ -71,73 +88,460 @@ class _TodosScreenState extends State<TodosScreen> {
   );
 
   Widget _listView(BuildContext context, List<TodoGroup> todos, AppState state, bool isDark) {
+    if (state.todosSort == 'manual') {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        itemCount: todos.length,
+        onReorder: (o, n) => state.reorderTodo(o, n),
+        proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
+        itemBuilder: (ctx, i) => Padding(
+          key: ValueKey(todos[i].id),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _TodoCard(
+            group: todos[i],
+            showTag: state.todosFilter == 'Все',
+            view: 1,
+            expanded: false,
+            onToggleExpand: () {},
+            onTap: () => _openEditor(context, todos[i]),
+            onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: todos.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _TodoCard(
-        group: todos[i],
-        showTag: state.todosFilter == 'Все',
-        view: 1,
-        expanded: _expandedIds.contains(todos[i].id),
-        onToggleExpand: () => setState(() {
-          if (_expandedIds.contains(todos[i].id)) _expandedIds.remove(todos[i].id);
-          else _expandedIds.add(todos[i].id);
-        }),
-        onTap: () => _openEditor(context, todos[i]),
-        onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+      itemBuilder: (ctx, i) => _SwipableCard(
+        key: ValueKey(todos[i].id),
+        itemKey: ValueKey('del-todo-${todos[i].id}'),
+        padding: const EdgeInsets.only(bottom: 10),
+        onDelete: () => state.deleteTodo(todos[i].id),
+        child: _TodoCard(
+          group: todos[i],
+          showTag: state.todosFilter == 'Все',
+          view: 1,
+          expanded: false,
+          onToggleExpand: () {},
+          onTap: () => _openEditor(context, todos[i]),
+          onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+        ),
       ),
     );
   }
 
   Widget _gridView(BuildContext context, List<TodoGroup> todos, AppState state, bool isDark) {
-    return MasonryGridView.count(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      crossAxisCount: 2,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      itemCount: todos.length,
-      itemBuilder: (ctx, i) => _TodoCard(
-        group: todos[i],
-        showTag: state.todosFilter == 'Все',
-        view: 2,
-        expanded: false,
-        onToggleExpand: () {},
-        onTap: () => _openEditor(context, todos[i]),
-        onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
-      ),
+    return _TodosMasonryGrid(
+      onOpenEditor: (g) => _openEditor(context, g),
     );
   }
 
   Widget _compactView(BuildContext context, List<TodoGroup> todos, AppState state, bool isDark) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: todos.length,
-      itemBuilder: (ctx, i) => _TodoCard(
-        group: todos[i],
-        showTag: false,
-        view: 3,
-        expanded: false,
-        onToggleExpand: () {},
-        onTap: () => _openEditor(context, todos[i]),
-        onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
-      ),
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    return Column(
+      children: [
+        // Кнопки свернуть/развернуть все
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              GestureDetector(
+                onTap: () => _toggleAll(todos),
+                child: Row(
+                  children: [
+                    Icon(
+                      _allExpanded ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
+                      size: 14, color: AppColors.terracotta,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _allExpanded ? 'Свернуть все' : 'Развернуть все',
+                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: state.todosSort == 'manual'
+            ? ReorderableListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                itemCount: todos.length,
+                onReorder: (o, n) => state.reorderTodo(o, n),
+                proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
+                itemBuilder: (ctx, i) => _TodoCard(
+                  key: ValueKey(todos[i].id),
+                  group: todos[i],
+                  showTag: false,
+                  view: 3,
+                  expanded: _expandedIds.contains(todos[i].id),
+                  onToggleExpand: () => setState(() {
+                    if (_expandedIds.contains(todos[i].id)) _expandedIds.remove(todos[i].id);
+                    else _expandedIds.add(todos[i].id);
+                  }),
+                  onTap: () => _openEditor(context, todos[i]),
+                  onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                itemCount: todos.length,
+                itemBuilder: (ctx, i) => _TodoCard(
+                  group: todos[i],
+                  showTag: false,
+                  view: 3,
+                  expanded: _expandedIds.contains(todos[i].id),
+                  onToggleExpand: () => setState(() {
+                    if (_expandedIds.contains(todos[i].id)) _expandedIds.remove(todos[i].id);
+                    else _expandedIds.add(todos[i].id);
+                  }),
+                  onTap: () => _openEditor(context, todos[i]),
+                  onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                ),
+            ),
+          ),
+      ],
     );
   }
 
   void _openEditor(BuildContext context, [TodoGroup? group]) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => TodoEditorSheet(group: group),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (_) => TodoEditorDialog(group: group),
     );
   }
+}
 
+// ─── Todos Masonry Grid ───────────────────────────────────
+class _TodosMasonryGrid extends StatefulWidget {
+  final void Function(TodoGroup) onOpenEditor;
+
+  const _TodosMasonryGrid({
+    required this.onOpenEditor,
+  });
+
+  @override
+  State<_TodosMasonryGrid> createState() => _TodosMasonryGridState();
+}
+
+class _TodosMasonryGridState extends State<_TodosMasonryGrid> {
+  final ValueNotifier<String?> _dragState = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _dragState.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // watch только нужные поля — dragState живёт отдельно и не сбрасывается
+    final state = context.watch<AppState>();
+    final todos = state.filteredTodos('');
+    final showTag = state.todosFilter == 'Все';
+    final canDrag = state.todosSort == 'manual';
+
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        // subtract horizontal padding (16+16) so the two columns + gap fit exactly
+        final colW = (constraints.maxWidth - 32 - 10) / 2;
+
+        Widget buildCard(TodoGroup g) {
+          final card = Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _TodoCard(
+              group: g, showTag: showTag, view: 2,
+              expanded: false, onToggleExpand: () {},
+              onTap: () => widget.onOpenEditor(g),
+              onCheckItem: (idx) => context.read<AppState>().toggleTodoItem(g.id, idx),
+            ),
+          );
+          if (!canDrag) return KeyedSubtree(key: ValueKey(g.id), child: card);
+          return _DraggableMasonryCard<TodoGroup>(
+            key: ValueKey(g.id),
+            itemId: g.id,
+            dragState: _dragState,
+            feedbackWidth: colW,
+            onReorder: (fromId, toId) =>
+                context.read<AppState>().reorderTodoById(fromId, toId),
+            child: card,
+          );
+        }
+
+        final left  = [for (int i = 0; i < todos.length; i += 2) todos[i]];
+        final right = [for (int i = 1; i < todos.length; i += 2) todos[i]];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: colW,
+                child: Column(children: left.map(buildCard).toList()),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: colW,
+                child: Column(children: right.map(buildCard).toList()),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Draggable Masonry Card ───────────────────────────────
+class _DraggableMasonryCard<T> extends StatefulWidget {
+  final String itemId;
+  final void Function(String fromId, String toId) onReorder;
+  final ValueNotifier<String?> dragState;
+  final Widget child;
+  final double feedbackWidth;
+
+  const _DraggableMasonryCard({
+    super.key,
+    required this.itemId,
+    required this.onReorder,
+    required this.dragState,
+    required this.child,
+    required this.feedbackWidth,
+  });
+
+  @override
+  State<_DraggableMasonryCard<T>> createState() => _DraggableMasonryCardState<T>();
+}
+
+class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
+  static String? _draggingIdFrom(String? v) {
+    if (v == null) return null;
+    return v.split('->')[0];
+  }
+
+  static String? _targetIdFrom(String? v) {
+    if (v == null || !v.contains('->')) return null;
+    return v.split('->')[1];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: widget.dragState,
+      builder: (ctx, dragVal, _) {
+        final isMe = _draggingIdFrom(dragVal) == widget.itemId;
+        final isTarget = _targetIdFrom(dragVal) == widget.itemId;
+
+        return DragTarget<String>(
+          onWillAcceptWithDetails: (details) {
+            if (details.data == widget.itemId) return false;
+            widget.dragState.value = '${details.data}->${widget.itemId}';
+            return true;
+          },
+          onLeave: (fromId) {
+            if (fromId != null) widget.dragState.value = fromId;
+          },
+          onAcceptWithDetails: (details) {
+            widget.dragState.value = null;
+            if (details.data != widget.itemId) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                widget.onReorder(details.data, widget.itemId);
+              });
+            }
+          },
+          builder: (ctx, candidateData, rejectedData) {
+            return LongPressDraggable<String>(
+              data: widget.itemId,
+              delay: const Duration(milliseconds: 350),
+              onDragStarted: () => widget.dragState.value = widget.itemId,
+              onDragEnd: (_) => widget.dragState.value = null,
+              onDraggableCanceled: (_, __) => widget.dragState.value = null,
+              feedback: SizedBox(
+                width: widget.feedbackWidth,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Opacity(opacity: 0.88, child: widget.child),
+                ),
+              ),
+              childWhenDragging: _SizedPlaceholder(child: widget.child, visible: false),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 120),
+                opacity: isMe ? 0.0 : 1.0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                      child: isTarget
+                          ? _SizedPlaceholder(child: widget.child, visible: true)
+                          : const SizedBox.shrink(),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: isTarget
+                          ? BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.terracotta.withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
+                            )
+                          : const BoxDecoration(),
+                      child: widget.child,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SizedPlaceholder extends StatefulWidget {
+  final Widget child;
+  final bool visible;
+  const _SizedPlaceholder({required this.child, required this.visible});
+
+  @override
+  State<_SizedPlaceholder> createState() => _SizedPlaceholderState();
+}
+
+class _SizedPlaceholderState extends State<_SizedPlaceholder> {
+  final _key = GlobalKey();
+  Size? _size;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+  }
+
+  void _measure() {
+    final ctx = _key.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box != null && mounted && _size != box.size) {
+      setState(() => _size = box.size);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Opacity(opacity: 0, child: KeyedSubtree(key: _key, child: widget.child)),
+        if (_size != null)
+          SizedBox(
+            width: _size!.width,
+            height: _size!.height,
+            child: widget.visible
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.terracotta.withValues(alpha: 0.35),
+                          width: 1.5,
+                        ),
+                        color: AppColors.terracotta.withValues(alpha: 0.05),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+      ],
+    );
+  }
+}
+
+// ─── Swipable Card ─────────────────────────────────────────
+class _SwipableCard extends StatelessWidget {
+  final Key itemKey;
+  final Widget child;
+  final VoidCallback onDelete;
+  final EdgeInsets padding;
+  const _SwipableCard({super.key, required this.itemKey, required this.child, required this.onDelete, this.padding = EdgeInsets.zero});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.watch<AppState>().darkMode;
+    return Dismissible(
+      key: itemKey,
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+          context: context,
+          barrierColor: Colors.black.withValues(alpha: 0.4),
+          builder: (ctx) {
+            final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+            final text = isDark ? AppColors.darkText : AppColors.lightText;
+            final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+            return Dialog(
+              backgroundColor: bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text)),
+                    const SizedBox(height: 8),
+                    Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
+                    const SizedBox(height: 20),
+                    Row(children: [
+                      Expanded(child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(color: isDark ? AppColors.darkBg2 : AppColors.lightBg2, borderRadius: BorderRadius.circular(12)),
+                          alignment: Alignment.center,
+                          child: Text('Отмена', style: GoogleFonts.dmSans(fontSize: 13, color: textSec, fontWeight: FontWeight.w600)),
+                        ),
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(12)),
+                          alignment: Alignment.center,
+                          child: Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      )),
+                    ]),
+                  ],
+                ),
+              ),
+            );
+          },
+        ) ?? false;
+      },
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        margin: padding,
+        decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(18)),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
 }
 
 // ─── Todo Card ─────────────────────────────────────────────
-class _TodoCard extends StatelessWidget {
+class _TodoCard extends StatefulWidget {
   final TodoGroup group;
   final bool showTag;
   final int view; // 1=list, 2=grid, 3=compact
@@ -147,6 +551,7 @@ class _TodoCard extends StatelessWidget {
   final ValueChanged<int> onCheckItem;
 
   const _TodoCard({
+    super.key,
     required this.group,
     required this.showTag,
     required this.view,
@@ -157,38 +562,212 @@ class _TodoCard extends StatelessWidget {
   });
 
   @override
+  State<_TodoCard> createState() => _TodoCardState();
+}
+
+class _TodoCardState extends State<_TodoCard> {
+  bool _itemsExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final group = widget.group;
+    final showTag = widget.showTag;
+    final view = widget.view;
+    final expanded = widget.expanded;
+    final onToggleExpand = widget.onToggleExpand;
+    final onTap = widget.onTap;
+    final onCheckItem = widget.onCheckItem;
+
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final cardBg = isDark ? AppColors.darkCard : AppColors.lightSurface;
+    final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
-    final catColor = AppColors.categoryColor(group.category);
-    final maxItems = view == 2 ? 3 : (view == 3 ? 0 : (expanded ? group.items.length : 3));
-    final showItems = view != 3;
-    final items = showItems ? group.items.take(maxItems).toList() : [];
+    final catColor = state.folderColor(group.category);
 
+    // ── Compact view (view 3) — expandable rows ──
     if (view == 3) {
+      final items = expanded ? group.items : [];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(
+                color: expanded ? Colors.transparent : divider,
+              )),
+            ),
+            child: Row(
+              children: [
+                // Тап на название — открыть редактор
+                GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
+                        const SizedBox(width: 10),
+                      ],
+                    ),
+                  ),
+                ),
+                // Expanded текст — тоже открывает редактор
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      child: Text(group.name, style: GoogleFonts.fraunces(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ),
+                // Счётчик + шеврон — раскрыть/свернуть
+                GestureDetector(
+                  onTap: onToggleExpand,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${group.doneCount}/${group.total}',
+                          style: GoogleFonts.dmSans(fontSize: 10, color: textSec),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                          size: 15, color: textSec,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (expanded) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.fromLTRB(16, 6, 8, 10),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: divider)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (group.total > 0) ...[
+                    _ProgressBar(done: group.doneCount, total: group.total),
+                    const SizedBox(height: 8),
+                  ],
+                  ...group.items.asMap().entries.map((e) {
+                    final idx = e.key;
+                    final item = e.value;
+                    return GestureDetector(
+                      onTap: () => onCheckItem(idx),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 5),
+                        child: Row(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 15, height: 15,
+                              decoration: BoxDecoration(
+                                color: item.done ? AppColors.terracotta : Colors.transparent,
+                                border: Border.all(
+                                  color: item.done ? AppColors.terracotta : divider,
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: item.done
+                                  ? const Icon(Icons.check_rounded, size: 9, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item.text,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  color: item.done ? textSec : textColor,
+                                  decoration: item.done ? TextDecoration.lineThrough : null,
+                                  decorationColor: textSec,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // ── List & Grid view ──
+    // view 1: до 3 задач, раскрывается; view 2: до 5 задач, без кнопки
+    final maxVisible = view == 2 ? 5 : (!_itemsExpanded ? 3 : group.items.length);
+    final items = group.items.take(maxVisible).toList();
+
+    // Режим «только задача»: одна задача — без названия, бара и тега (все виды)
+    final singleTask = group.items.length == 1;
+    final singleTaskNoTitle = singleTask;
+
+    if (singleTaskNoTitle) {
+      final item = group.items.first;
       return GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: divider)),
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+              width: 1,
+            ),
           ),
           child: Row(
             children: [
-              Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(group.name, style: GoogleFonts.fraunces(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-                ), overflow: TextOverflow.ellipsis),
+              GestureDetector(
+                onTap: () => onCheckItem(0),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 16, height: 16,
+                  decoration: BoxDecoration(
+                    color: item.done ? AppColors.terracotta : Colors.transparent,
+                    border: Border.all(
+                      color: item.done ? AppColors.terracotta : divider,
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: item.done
+                      ? const Icon(Icons.check_rounded, size: 10, color: Colors.white)
+                      : null,
+                ),
               ),
-              Text(
-                '${group.doneCount}/${group.total}',
-                style: GoogleFonts.dmSans(fontSize: 10, color: textSec),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.text,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: item.done ? textSec : textColor,
+                    decoration: item.done ? TextDecoration.lineThrough : null,
+                    decorationColor: textSec,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -203,22 +782,22 @@ class _TodoCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-          border: Border.all(color: divider, width: 0.5),
+          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 1),
         ),
         child: Stack(
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 60),
-                  child: Row(
-                    children: [
-                      Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
-                      const SizedBox(width: 7),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: view == 1 ? onToggleExpand : null,
+                // Название — скрываем если одна задача (любой вид)
+                if (group.name.trim().isNotEmpty && group.items.length != 1)
+                  Padding(
+                    padding: EdgeInsets.only(right: showTag ? 60 : 0),
+                    child: Row(
+                      children: [
+                        Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
+                        const SizedBox(width: 7),
+                        Expanded(
                           child: Text(
                             group.name,
                             style: GoogleFonts.fraunces(
@@ -226,23 +805,20 @@ class _TodoCard extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      if (view == 1)
-                        Icon(
-                          expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                          size: 16, color: textSec,
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                if (group.total > 0) ...[
+                // Прогресс-бар — скрываем если одна задача (любой вид)
+                if (group.name.trim().isNotEmpty && group.total > 0 && group.items.length != 1) ...[
                   const SizedBox(height: 6),
                   _ProgressBar(done: group.doneCount, total: group.total),
                 ],
                 if (items.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  if (group.name.trim().isNotEmpty && group.items.length != 1) const SizedBox(height: 8),
                   ...items.asMap().entries.map((e) {
                     final idx = e.key;
                     final item = e.value;
@@ -277,6 +853,7 @@ class _TodoCard extends StatelessWidget {
                                   decoration: item.done ? TextDecoration.lineThrough : null,
                                   decorationColor: textSec,
                                 ),
+                                maxLines: (view == 1 && _itemsExpanded) ? 2 : 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -285,35 +862,32 @@ class _TodoCard extends StatelessWidget {
                       ),
                     );
                   }),
-                  if (group.items.length > maxItems && view == 1 && !expanded)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                  if (view == 1 && group.items.length > 3) ...[
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () => setState(() => _itemsExpanded = !_itemsExpanded),
                       child: Text(
-                        '+ ещё ${group.items.length - maxItems}',
+                        _itemsExpanded ? 'Свернуть' : 'Ещё',
                         style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
                       ),
                     ),
+                  ],
                 ],
               ],
             ),
-            Positioned(
-              top: 0, right: 0,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (showTag) CategoryBadge(label: group.category),
-                  const SizedBox(height: 4),
-                  Text(
-                    formatDate(group.createdAt),
-                    style: GoogleFonts.dmSans(fontSize: 9, color: textSec),
-                  ),
-                ],
+            if (showTag && group.name.trim().isNotEmpty && group.items.length != 1)
+              Positioned(
+                top: 0, right: 0,
+                child: CategoryBadge(
+                  label: group.category.length > 7
+                      ? group.category.substring(0, 7)
+                      : group.category,
+                ),
               ),
-            ),
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -338,27 +912,29 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-// ─── Todo Editor Sheet ─────────────────────────────────────
-class TodoEditorSheet extends StatefulWidget {
+// ─── Todo Editor Dialog (center) ──────────────────────────
+class TodoEditorDialog extends StatefulWidget {
   final TodoGroup? group;
-  const TodoEditorSheet({super.key, this.group});
+  final String initialCategory;
+  const TodoEditorDialog({super.key, this.group, this.initialCategory = ''});
 
   @override
-  State<TodoEditorSheet> createState() => _TodoEditorSheetState();
+  State<TodoEditorDialog> createState() => _TodoEditorDialogState();
 }
 
-class _TodoEditorSheetState extends State<TodoEditorSheet> {
+class _TodoEditorDialogState extends State<TodoEditorDialog> {
   late TextEditingController _nameCtrl;
   late String _category;
   late List<TextEditingController> _itemCtrls;
   late List<bool> _itemDone;
   final List<FocusNode> _focusNodes = [];
+  bool _tagMenuOpen = false;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.group?.name ?? '');
-    _category = widget.group?.category ?? 'Дом';
+    _category = widget.group?.category ?? widget.initialCategory ?? '';
     final items = widget.group?.items ?? [TodoItem(text: '')];
     _itemCtrls = items.map((i) => TextEditingController(text: i.text)).toList();
     _itemDone = items.map((i) => i.done).toList();
@@ -379,9 +955,7 @@ class _TodoEditorSheetState extends State<TodoEditorSheet> {
       _itemDone.add(false);
       _focusNodes.add(FocusNode());
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNodes.last.requestFocus();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusNodes.last.requestFocus());
   }
 
   void _save() {
@@ -390,7 +964,6 @@ class _TodoEditorSheetState extends State<TodoEditorSheet> {
         .where((e) => e.value.text.trim().isNotEmpty)
         .map((e) => TodoItem(text: e.value.text.trim(), done: _itemDone[e.key]))
         .toList();
-
     if (widget.group != null) {
       widget.group!.name = _nameCtrl.text.trim().isEmpty ? 'Список' : _nameCtrl.text.trim();
       widget.group!.category = _category;
@@ -418,176 +991,223 @@ class _TodoEditorSheetState extends State<TodoEditorSheet> {
     final isDark = state.darkMode;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final textHint = isDark ? const Color(0x4DE6AF78) : const Color(0x6E785028);
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+    return GestureDetector(
+      onTap: () { if (_tagMenuOpen) setState(() => _tagMenuOpen = false); },
+      child: Dialog(
+        backgroundColor: bg,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            const SizedBox(height: 12),
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: divider, borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Header row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _nameCtrl,
-                      style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text),
-                      decoration: InputDecoration(
-                        filled: false,
-                        border: InputBorder.none,
-                        hintText: 'Название списка',
-                        hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textSec.withOpacity(0.4)),
-                      ),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Шапка: название + выпадающий список папки ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Stack(
+              alignment: Alignment.centerRight,
+              children: [
+                // Название
+                Padding(
+                  padding: const EdgeInsets.only(right: 120),
+                  child: TextField(
+                    controller: _nameCtrl,
+                    autofocus: widget.group == null,
+                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text),
+                    decoration: InputDecoration(
+                      filled: false, border: InputBorder.none,
+                      hintText: 'Название списка',
+                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint),
+                      contentPadding: EdgeInsets.zero, isDense: true,
                     ),
                   ),
-                  if (widget.group != null)
-                    IconButton(
-                      icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withOpacity(0.7), size: 20),
-                      onPressed: _delete,
-                    ),
-                ],
-              ),
-            ),
-            // Category
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: AppState.todoCategories.skip(1).map((cat) {
-                    final sel = _category == cat;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _category = cat),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: sel ? AppColors.categoryColor(cat) : (isDark ? AppColors.darkCard : AppColors.lightCardAlt),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(cat, style: GoogleFonts.dmSans(
-                            fontSize: 11, fontWeight: FontWeight.w600,
-                            color: sel ? Colors.white : textSec,
-                          )),
-                        ),
-                      ),
-                    );
-                  }).toList(),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Divider(color: divider, height: 1),
-            Flexible(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shrinkWrap: true,
-                itemCount: _itemCtrls.length,
-                itemBuilder: (ctx, i) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setState(() => _itemDone[i] = !_itemDone[i]),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 18, height: 18,
-                          decoration: BoxDecoration(
-                            color: _itemDone[i] ? AppColors.terracotta : Colors.transparent,
-                            border: Border.all(
-                              color: _itemDone[i] ? AppColors.terracotta : divider,
-                              width: 1.5,
+                // Выпадающий список папки
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () => setState(() => _tagMenuOpen = !_tagMenuOpen),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: state.folderColor(_category).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _category.isEmpty ? '–' : _category,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11, fontWeight: FontWeight.w700,
+                                color: state.folderColor(_category),
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: _itemDone[i]
-                              ? const Icon(Icons.check_rounded, size: 11, color: Colors.white)
-                              : null,
+                            const SizedBox(width: 4),
+                            Icon(
+                              _tagMenuOpen
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: 14, color: state.folderColor(_category),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _itemCtrls[i],
-                          focusNode: _focusNodes[i],
-                          style: GoogleFonts.dmSans(fontSize: 14, color: text),
-                          decoration: InputDecoration(
-                            filled: false,
-                            border: InputBorder.none,
-                            hintText: 'Задача...',
-                            hintStyle: GoogleFonts.dmSans(fontSize: 14, color: textSec.withOpacity(0.4)),
+                    ),
+                    if (_tagMenuOpen)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        width: 150,
+                        constraints: const BoxConstraints(maxHeight: 260),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkBg : AppColors.lightBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+                            width: 0.5,
                           ),
-                          onSubmitted: (_) => _addRow(),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                              blurRadius: 12, offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          shrinkWrap: true,
+                          children: ['', ...context.read<AppState>().todoFolders].map((tag) {
+                            final sel = _category == tag;
+                            final tColor = state.folderColor(tag);
+                            return GestureDetector(
+                              onTap: () => setState(() {
+                                _category = tag;
+                                _tagMenuOpen = false;
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                color: sel ? tColor.withValues(alpha: 0.1) : Colors.transparent,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 7, height: 7,
+                                      decoration: BoxDecoration(color: tColor, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        tag.isEmpty ? '–' : tag,
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 12,
+                                          fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                                          color: sel ? tColor : text,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-              ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-              child: GestureDetector(
-                onTap: _addRow,
+          ),
+          const SizedBox(height: 12),
+          Divider(color: divider, height: 1),
+          // ── Список задач ──
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              shrinkWrap: true,
+              itemCount: _itemCtrls.length,
+              itemBuilder: (ctx, i) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
                 child: Row(
                   children: [
-                    Icon(Icons.add_rounded, size: 18, color: AppColors.terracotta),
-                    const SizedBox(width: 8),
-                    Text('Добавить задачу', style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.terracotta)),
+                    GestureDetector(
+                      onTap: () => setState(() => _itemDone[i] = !_itemDone[i]),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 18, height: 18,
+                        decoration: BoxDecoration(
+                          color: _itemDone[i] ? AppColors.terracotta : Colors.transparent,
+                          border: Border.all(
+                            color: _itemDone[i] ? AppColors.terracotta : divider,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: _itemDone[i]
+                            ? const Icon(Icons.check_rounded, size: 11, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _itemCtrls[i],
+                        focusNode: _focusNodes[i],
+                        style: GoogleFonts.dmSans(fontSize: 14, color: text),
+                        decoration: InputDecoration(
+                          filled: false, border: InputBorder.none,
+                          hintText: 'Задача...',
+                          hintStyle: GoogleFonts.dmSans(fontSize: 14, color: textHint),
+                        ),
+                        onSubmitted: (_) => _addRow(),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            Divider(color: divider, height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+            child: GestureDetector(
+              onTap: _addRow,
               child: Row(
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _save,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: AppColors.terracotta,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Сохранить',
-                          style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
+                  Icon(Icons.add_rounded, size: 18, color: AppColors.terracotta),
+                  const SizedBox(width: 8),
+                  Text('Добавить задачу', style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.terracotta)),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          Divider(color: divider, height: 1),
+          // ── Кнопка сохранить ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: GestureDetector(
+              onTap: _save,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.terracotta,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Text('Сохранить', style: GoogleFonts.dmSans(
+                  fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
+                )),
+              ),
+            ),
+          ),
+        ],
       ),
-    );
+    ));
   }
 }
