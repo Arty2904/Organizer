@@ -13,9 +13,38 @@ class AppState extends ChangeNotifier {
   String get userName => _userName;
 
   // View modes: 1=list, 2=grid, 3=compact
-  int notesView = 1;
-  int todosView = 1;
-  int eventsView = 1;
+  int _notesView = 1;
+  int _todosView = 1;
+  int _eventsView = 1;
+
+  int get notesView => _notesView;
+  int get todosView => _todosView;
+  int get eventsView => _eventsView;
+
+  set notesView(int v) { _notesView = v; _saveViews(); }
+  set todosView(int v) { _todosView = v; _saveViews(); }
+  set eventsView(int v) { _eventsView = v; _saveViews(); }
+
+  // Sort modes: 'date' or 'manual'
+  String _notesSort = 'date';
+  String get notesSort => _notesSort;
+  set notesSort(String v) { _notesSort = v; _saveViews(); notifyListeners(); }
+
+  // Manual order stored as list of ids
+  List<String> _notesOrder = [];
+  List<String> get notesOrder => _notesOrder;
+
+  void reorderNote(int oldIndex, int newIndex) {
+    // Rebuild _notesOrder from current notes if empty
+    if (_notesOrder.isEmpty) {
+      _notesOrder = notes.map((n) => n.id).toList();
+    }
+    if (newIndex > oldIndex) newIndex -= 1;
+    final id = _notesOrder.removeAt(oldIndex);
+    _notesOrder.insert(newIndex, id);
+    _save();
+    notifyListeners();
+  }
 
   // Tab
   int currentTab = 1; // 0=events,1=notes,2=todos,3=calendar
@@ -43,6 +72,14 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _darkMode = prefs.getBool('darkMode') ?? true;
     _userName = prefs.getString('userName') ?? '';
+    _notesView = prefs.getInt('notesView') ?? 1;
+    _todosView = prefs.getInt('todosView') ?? 1;
+    _eventsView = prefs.getInt('eventsView') ?? 1;
+    _notesSort = prefs.getString('notesSort') ?? 'date';
+    final orderJson = prefs.getString('notesOrder');
+    if (orderJson != null) {
+      _notesOrder = List<String>.from(jsonDecode(orderJson));
+    }
 
     final notesJson = prefs.getString('notes');
     if (notesJson != null) {
@@ -142,6 +179,15 @@ class AppState extends ChangeNotifier {
     await prefs.setString('events', jsonEncode(events.map((e) => e.toJson()).toList()));
   }
 
+  Future<void> _saveViews() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('notesView', _notesView);
+    await prefs.setInt('todosView', _todosView);
+    await prefs.setInt('eventsView', _eventsView);
+    await prefs.setString('notesSort', _notesSort);
+    await prefs.setString('notesOrder', jsonEncode(_notesOrder));
+  }
+
   void refresh() {
     notifyListeners();
   }
@@ -202,11 +248,27 @@ class AppState extends ChangeNotifier {
   }
 
   List<Note> filteredNotes(String query) {
-    return notes.where((n) {
+    var result = notes.where((n) {
       final matchCat = notesFilter == 'Все' || n.category == notesFilter;
-      final matchQ = query.isEmpty || n.title.toLowerCase().contains(query.toLowerCase()) || n.body.toLowerCase().contains(query.toLowerCase());
+      final matchQ = query.isEmpty ||
+          n.title.toLowerCase().contains(query.toLowerCase()) ||
+          n.body.toLowerCase().contains(query.toLowerCase());
       return matchCat && matchQ;
     }).toList();
+
+    if (_notesSort == 'manual' && _notesOrder.isNotEmpty) {
+      result.sort((a, b) {
+        final ai = _notesOrder.indexOf(a.id);
+        final bi = _notesOrder.indexOf(b.id);
+        if (ai == -1 && bi == -1) return 0;
+        if (ai == -1) return 1;
+        if (bi == -1) return -1;
+        return ai.compareTo(bi);
+      });
+    } else {
+      result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return result;
   }
 
   List<TodoGroup> filteredTodos(String query) {

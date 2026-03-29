@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
 import '../models/models.dart';
@@ -72,6 +71,24 @@ class _NotesScreenState extends State<NotesScreen> {
   );
 
   Widget _listView(BuildContext context, List<Note> notes, AppState state) {
+    if (state.notesSort == 'manual') {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        itemCount: notes.length,
+        onReorder: (o, n) => state.reorderNote(o, n),
+        proxyDecorator: (child, _, __) =>
+            Material(color: Colors.transparent, child: child),
+        itemBuilder: (ctx, i) => Padding(
+          key: ValueKey(notes[i].id),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _NoteCard(
+            note: notes[i], showTag: state.notesFilter == 'Все',
+            compact: false, grid: false,
+            onTap: () => _openEditor(context, notes[i]),
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
@@ -85,21 +102,57 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Widget _gridView(BuildContext context, List<Note> notes, AppState state) {
-    return MasonryGridView.count(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      crossAxisCount: 2,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      itemCount: notes.length,
-      itemBuilder: (ctx, i) => _NoteCard(
-        note: notes[i], showTag: state.notesFilter == 'Все',
-        compact: false, grid: true,
-        onTap: () => _openEditor(context, notes[i]),
-      ),
+    final showTag = state.notesFilter == 'Все';
+    final left = [for (int i = 0; i < notes.length; i += 2) notes[i]];
+    final right = [for (int i = 1; i < notes.length; i += 2) notes[i]];
+
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        // Calculate exact card width: screen - horizontal padding - gap between cols
+        final colWidth = (constraints.maxWidth - 16 - 16 - 10) / 2;
+
+        Widget buildCard(Note note) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _GridCard(
+            note: note,
+            showTag: showTag,
+            width: colWidth,
+            onTap: () => _openEditor(context, note),
+            isDark: state.darkMode,
+          ),
+        );
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(children: left.map(buildCard).toList()),
+              const SizedBox(width: 10),
+              Column(children: right.map(buildCard).toList()),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _compactView(BuildContext context, List<Note> notes, AppState state) {
+    if (state.notesSort == 'manual') {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        itemCount: notes.length,
+        onReorder: (o, n) => state.reorderNote(o, n),
+        proxyDecorator: (child, _, __) =>
+            Material(color: Colors.transparent, child: child),
+        itemBuilder: (ctx, i) => _NoteCard(
+          key: ValueKey(notes[i].id),
+          note: notes[i], showTag: false,
+          compact: true, grid: false,
+          onTap: () => _openEditor(context, notes[i]),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
@@ -127,6 +180,7 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NoteCard({
+    super.key,
     required this.note,
     required this.showTag,
     required this.compact,
@@ -143,7 +197,7 @@ class _NoteCard extends StatelessWidget {
     final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final catColor = AppColors.categoryColor(note.category);
 
-    // ── Compact view (view 3) ──
+    // ── Compact view (view 3) — no date ──
     if (compact) {
       return GestureDetector(
         onTap: onTap,
@@ -166,8 +220,6 @@ class _NoteCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(formatDate(note.createdAt),
-                  style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
             ],
           ),
         ),
@@ -179,6 +231,7 @@ class _NoteCard extends StatelessWidget {
       return GestureDetector(
         onTap: onTap,
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: cardBg,
@@ -189,9 +242,9 @@ class _NoteCard extends StatelessWidget {
             ),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Title — 1 line, ellipsis, no dot
               Text(
                 note.title,
                 style: GoogleFonts.fraunces(
@@ -203,7 +256,6 @@ class _NoteCard extends StatelessWidget {
               ),
               if (note.body.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                // Body edge-to-edge (no side padding)
                 Text(
                   note.body,
                   style: GoogleFonts.dmSans(
@@ -211,6 +263,7 @@ class _NoteCard extends StatelessWidget {
                   ),
                   maxLines: 5,
                   overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                 ),
               ],
             ],
@@ -278,6 +331,76 @@ class _NoteCard extends StatelessWidget {
                       : note.category,
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Grid Card (explicit width) ───────────────────────────
+class _GridCard extends StatelessWidget {
+  final Note note;
+  final bool showTag;
+  final double width;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _GridCard({
+    required this.note,
+    required this.showTag,
+    required this.width,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cardBg = isDark ? AppColors.darkCard : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final borderColor = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: width,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: width - 24, // minus padding
+              child: Text(
+                note.title,
+                style: GoogleFonts.fraunces(
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                  color: textColor, height: 1.25,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (note.body.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              SizedBox(
+                width: width - 24,
+                child: Text(
+                  note.body,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11, color: textSec, height: 1.4,
+                  ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ],
         ),
       ),

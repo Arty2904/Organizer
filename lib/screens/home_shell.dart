@@ -88,10 +88,19 @@ class _HomeShellState extends State<HomeShell> {
           ),
           centerTitle: true,
           actions: [
-            if (tab != 3) // No view switcher on calendar
+            if (tab != 3)
               Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: ViewSwitcher(current: currentView(), onChanged: setView),
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Filter button (notes only for now)
+                    if (tab == 1)
+                      _FilterButton(isDark: isDark, text: text, textSec: textSec, surface: surface),
+                    const SizedBox(width: 4),
+                    ViewSwitcher(current: currentView(), onChanged: setView),
+                  ],
+                ),
               ),
           ],
           bottom: PreferredSize(
@@ -221,4 +230,98 @@ class _HamburgerIcon extends StatelessWidget {
     width: width, height: 2,
     decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(1)),
   );
+}
+
+// ─── Filter Button ─────────────────────────────────────────
+class _FilterButton extends StatelessWidget {
+  final bool isDark;
+  final Color text;
+  final Color textSec;
+  final Color surface;
+  const _FilterButton({
+    required this.isDark,
+    required this.text,
+    required this.textSec,
+    required this.surface,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final cardBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
+    final isManual = state.notesSort == 'manual';
+
+    return GestureDetector(
+      onTapDown: (details) async {
+        final RenderBox button = context.findRenderObject() as RenderBox;
+        final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+        final RelativeRect position = RelativeRect.fromRect(
+          Rect.fromPoints(
+            button.localToGlobal(Offset(0, button.size.height + 4), ancestor: overlay),
+            button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+          ),
+          Offset.zero & overlay.size,
+        );
+        final selected = await showMenu<String>(
+          context: context,
+          color: surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          position: position,
+          items: [
+            _menuItem('date', 'По дате', Icons.calendar_today_rounded,
+                state.notesSort == 'date', isDark, text, textSec, surface),
+            _menuItem('manual', 'Вручную', Icons.drag_indicator_rounded,
+                state.notesSort == 'manual', isDark, text, textSec, surface),
+          ],
+        );
+        if (selected != null) {
+          state.notesSort = selected;
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: isManual
+              ? AppColors.terracotta.withValues(alpha: 0.15)
+              : cardBg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          Icons.filter_list_rounded,
+          size: 16,
+          color: isManual ? AppColors.terracotta : AppColors.terracotta.withValues(alpha: 0.5),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(
+    String value, String label, IconData icon, bool sel,
+    bool isDark, Color text, Color textSec, Color surface,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      padding: EdgeInsets.zero,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: sel
+            ? AppColors.terracotta.withValues(alpha: 0.1)
+            : Colors.transparent,
+        child: Row(
+          children: [
+            Icon(icon, size: 15,
+                color: sel ? AppColors.terracotta : textSec),
+            const SizedBox(width: 10),
+            Text(label,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                color: sel ? AppColors.terracotta : text,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

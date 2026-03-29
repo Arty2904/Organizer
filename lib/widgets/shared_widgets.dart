@@ -75,18 +75,20 @@ class ViewSwitcher extends StatelessWidget {
 
     return GestureDetector(
       onTapDown: (details) async {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final Offset offset = box.localToGlobal(Offset.zero);
+        final RenderBox button = context.findRenderObject() as RenderBox;
+        final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+        final RelativeRect position = RelativeRect.fromRect(
+          Rect.fromPoints(
+            button.localToGlobal(Offset(0, button.size.height + 4), ancestor: overlay),
+            button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+          ),
+          Offset.zero & overlay.size,
+        );
         final selected = await showMenu<int>(
           context: context,
           color: surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          position: RelativeRect.fromLTRB(
-            offset.dx - 140,
-            offset.dy + box.size.height + 4,
-            offset.dx + box.size.width,
-            0,
-          ),
+          position: position,
           items: [1, 2, 3].map((v) {
             final sel = current == v;
             return PopupMenuItem<int>(
@@ -109,11 +111,6 @@ class ViewSwitcher extends StatelessWidget {
                         color: sel ? AppColors.terracotta : text,
                       ),
                     ),
-                    if (sel) ...[
-                      const Spacer(),
-                      Icon(Icons.check_rounded, size: 14,
-                          color: AppColors.terracotta),
-                    ],
                   ],
                 ),
               ),
@@ -123,20 +120,12 @@ class ViewSwitcher extends StatelessWidget {
         if (selected != null) onChanged(selected);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_icons[current]!, size: 15, color: AppColors.terracotta),
-            const SizedBox(width: 5),
-            Icon(Icons.keyboard_arrow_down_rounded, size: 14,
-                color: AppColors.terracotta.withValues(alpha: 0.6)),
-          ],
-        ),
+        child: Icon(_icons[current]!, size: 16, color: AppColors.terracotta),
       ),
     );
   }
