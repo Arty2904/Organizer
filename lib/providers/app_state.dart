@@ -13,6 +13,9 @@ class AppState extends ChangeNotifier {
   String _userName = '';
   String get userName => _userName;
 
+  String _appFont = 'fraunces';
+  String get appFont => _appFont;
+
   // View modes: 1=list, 2=grid, 3=compact
   int _notesView = 1;
   int _todosView = 1;
@@ -297,6 +300,7 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _darkMode = prefs.getBool('darkMode') ?? true;
     _userName = prefs.getString('userName') ?? '';
+    _appFont = prefs.getString('appFont') ?? 'fraunces';
     _notesView = prefs.getInt('notesView') ?? 1;
     _todosView = prefs.getInt('todosView') ?? 1;
     _eventsView = prefs.getInt('eventsView') ?? 1;
@@ -434,6 +438,7 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('darkMode', _darkMode);
     await prefs.setString('userName', _userName);
+    await prefs.setString('appFont', _appFont);
     await prefs.setString('notes', jsonEncode(notes.map((n) => n.toJson()).toList()));
     await prefs.setString('todos', jsonEncode(todos.map((t) => t.toJson()).toList()));
     await prefs.setString('events', jsonEncode(events.map((e) => e.toJson()).toList()));
@@ -460,6 +465,11 @@ class AppState extends ChangeNotifier {
     _darkMode = !_darkMode;
     _save();
     notifyListeners();
+  }
+
+  void setAppFont(String font) {
+    _appFont = font;
+    _save(); notifyListeners();
   }
 
   void setUserName(String name) {
@@ -596,4 +606,57 @@ class AppState extends ChangeNotifier {
       return t.createdAt.year == month.year && t.createdAt.month == month.month;
     }).toList();
   }
+
+  // ── Bulk operations ───────────────────────────────────────
+  void bulkDeleteNotes(Set<String> ids) {
+    notes.removeWhere((n) => ids.contains(n.id));
+    _save(); notifyListeners();
+  }
+  void bulkMoveNotes(Set<String> ids, String category) {
+    for (final n in notes.where((n) => ids.contains(n.id))) {
+      n.category = category;
+    }
+    _save(); notifyListeners();
+  }
+  void bulkColorNotes(Set<String> ids, int colorIndex) {
+    for (final n in notes.where((n) => ids.contains(n.id))) {
+      n.colorIndex = colorIndex;
+    }
+    _save(); notifyListeners();
+  }
+
+  void bulkDeleteTodos(Set<String> ids) {
+    todos.removeWhere((t) => ids.contains(t.id));
+    _save(); notifyListeners();
+  }
+  void bulkMoveTodos(Set<String> ids, String category) {
+    for (final t in todos.where((t) => ids.contains(t.id))) {
+      t.category = category;
+    }
+    _save(); notifyListeners();
+  }
+  void bulkColorTodos(Set<String> ids, int colorIndex) {
+    for (final t in todos.where((t) => ids.contains(t.id))) {
+      t.colorIndex = colorIndex;
+    }
+    _save(); notifyListeners();
+  }
+
+  void bulkDeleteEvents(Set<String> ids) {
+    events.removeWhere((e) => ids.contains(e.id));
+    _save(); notifyListeners();
+  }
+  void bulkMoveEvents(Set<String> ids, String category) {
+    for (final e in events.where((e) => ids.contains(e.id))) {
+      e.category = category;
+    }
+    _save(); notifyListeners();
+  }
+  void bulkColorEvents(Set<String> ids, int colorIndex) {
+    for (final e in events.where((e) => ids.contains(e.id))) {
+      e.colorIndex = colorIndex;
+    }
+    _save(); notifyListeners();
+  }
+
 }

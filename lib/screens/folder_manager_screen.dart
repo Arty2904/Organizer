@@ -63,7 +63,7 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
       appBar: AppBar(
         backgroundColor: bg, surfaceTintColor: Colors.transparent,
         title: Text('Папки', style: GoogleFonts.fraunces(
-          fontSize: 15, fontWeight: FontWeight.w600, color: text)),
+          fontSize: 15, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: acc, unselectedLabelColor: sec,
@@ -162,7 +162,7 @@ class _FolderTabState extends State<_FolderTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Цвет папки', style: GoogleFonts.fraunces(
-                fontSize: 16, fontWeight: FontWeight.w600, color: text)),
+                fontSize: 16, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 10, runSpacing: 10,
@@ -205,7 +205,7 @@ class _FolderTabState extends State<_FolderTab> {
       builder: (_) => AlertDialog(
         backgroundColor: widget.bg,
         title: Text('Новая папка', style: GoogleFonts.fraunces(
-          fontSize: 17, color: widget.text, fontWeight: FontWeight.w600)),
+          fontSize: 17, color: widget.text, fontWeight: FontWeight.w600, fontStyle: FontStyle.normal,)),
         content: TextField(
           controller: ctrl, autofocus: true,
           style: GoogleFonts.dmSans(fontSize: 14, color: widget.text),
@@ -252,7 +252,7 @@ class _FolderTabState extends State<_FolderTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Удалить папку?', style: GoogleFonts.fraunces(
-                fontSize: 17, fontWeight: FontWeight.w600, color: widget.text)),
+                fontSize: 17, fontWeight: FontWeight.w600, color: widget.text, fontStyle: FontStyle.normal,)),
               const SizedBox(height: 8),
               Text('Папка «$name» будет удалена. Связанные элементы станут без тега.',
                   style: GoogleFonts.dmSans(fontSize: 13, color: widget.sec)),

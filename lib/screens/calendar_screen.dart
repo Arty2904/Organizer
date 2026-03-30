@@ -85,7 +85,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         style: GoogleFonts.fraunces(
                           fontSize: 18, fontWeight: FontWeight.w600,
                           color: text,
-                        ),
+                         fontStyle: FontStyle.normal,),
                       ),
                     ),
                     IconButton(
@@ -290,7 +290,7 @@ class _CalEventTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(event.title, style: GoogleFonts.fraunces(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
+                  Text(event.title, style: GoogleFonts.fraunces(fontSize: 14, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
                   if (event.reminderDate != null)
                     Text(
                       DateFormat('HH:mm').format(event.reminderDate!),
@@ -343,7 +343,7 @@ class _CalTodoTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(group.name, style: GoogleFonts.fraunces(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
+                  Text(group.name, style: GoogleFonts.fraunces(fontSize: 14, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
                   Text('${group.doneCount}/${group.total} выполнено', style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
                 ],
               ),

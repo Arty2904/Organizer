@@ -6,6 +6,7 @@ import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/selection_state.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
@@ -69,7 +70,7 @@ class _NotesScreenState extends State<NotesScreen> {
         Text('Нет заметок', style: GoogleFonts.fraunces(
           fontSize: 16,
           color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-        )),
+         fontStyle: FontStyle.normal,)),
       ],
     ),
   );
@@ -82,12 +83,16 @@ class _NotesScreenState extends State<NotesScreen> {
         onReorder: (o, n) => state.reorderNote(o, n),
         proxyDecorator: (child, _, __) =>
             Material(color: Colors.transparent, child: child),
-        itemBuilder: (ctx, i) => _SwipableNote(
+        itemBuilder: (ctx, i) => SelectableCardWrapper(
           key: ValueKey(notes[i].id),
-          note: notes[i],
-          showTag: state.notesFilter == 'Все',
-          onTap: () => _openEditor(context, notes[i]),
-          onDelete: () => state.deleteNote(notes[i].id),
+          itemId: notes[i].id,
+          child: _SwipableNote(
+            key: ValueKey('note-sw-${notes[i].id}'),
+            note: notes[i],
+            showTag: state.notesFilter == 'Все',
+            onTap: () => _openEditor(context, notes[i]),
+            onDelete: () => state.deleteNote(notes[i].id),
+          ),
         ),
       );
     }
@@ -95,15 +100,19 @@ class _NotesScreenState extends State<NotesScreen> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _SwipableCard(
+      itemBuilder: (ctx, i) => SelectableCardWrapper(
         key: ValueKey(notes[i].id),
-        itemKey: ValueKey('del-note2-${notes[i].id}'),
-        padding: const EdgeInsets.only(bottom: 10),
-        onDelete: () => state.deleteNote(notes[i].id),
-        child: _NoteCard(
-          note: notes[i], showTag: state.notesFilter == 'Все',
-          compact: false, grid: false,
-          onTap: () => _openEditor(context, notes[i]),
+        itemId: notes[i].id,
+        child: _SwipableCard(
+          key: ValueKey('sw2-${notes[i].id}'),
+          itemKey: ValueKey('del-note2-${notes[i].id}'),
+          padding: const EdgeInsets.only(bottom: 10),
+          onDelete: () => state.deleteNote(notes[i].id),
+          child: _NoteCard(
+            note: notes[i], showTag: state.notesFilter == 'Все',
+            compact: false, grid: false,
+            onTap: () => _openEditor(context, notes[i]),
+          ),
         ),
       ),
     );
@@ -119,14 +128,18 @@ class _NotesScreenState extends State<NotesScreen> {
         onReorder: (o, n) => state.reorderNote(o, n),
         proxyDecorator: (child, _, __) =>
             Material(color: Colors.transparent, child: child),
-        itemBuilder: (ctx, i) => _SwipableCard(
+        itemBuilder: (ctx, i) => SelectableCardWrapper(
           key: ValueKey(notes[i].id),
-          itemKey: ValueKey('del-notec-${notes[i].id}'),
-          onDelete: () => state.deleteNote(notes[i].id),
-          child: _NoteCard(
-            note: notes[i], showTag: false,
-            compact: true, grid: false,
-            onTap: () => _openEditor(context, notes[i]),
+          itemId: notes[i].id,
+          child: _SwipableCard(
+            key: ValueKey('swc-${notes[i].id}'),
+            itemKey: ValueKey('del-notec-${notes[i].id}'),
+            onDelete: () => state.deleteNote(notes[i].id),
+            child: _NoteCard(
+              note: notes[i], showTag: false,
+              compact: true, grid: false,
+              onTap: () => _openEditor(context, notes[i]),
+            ),
           ),
         ),
       );
@@ -134,14 +147,18 @@ class _NotesScreenState extends State<NotesScreen> {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
-      itemBuilder: (ctx, i) => _SwipableCard(
+      itemBuilder: (ctx, i) => SelectableCardWrapper(
         key: ValueKey(notes[i].id),
-        itemKey: ValueKey('del-notec2-${notes[i].id}'),
-        onDelete: () => state.deleteNote(notes[i].id),
-        child: _NoteCard(
-          note: notes[i], showTag: false,
-          compact: true, grid: false,
-          onTap: () => _openEditor(context, notes[i]),
+        itemId: notes[i].id,
+        child: _SwipableCard(
+          key: ValueKey('swc2-${notes[i].id}'),
+          itemKey: ValueKey('del-notec2-${notes[i].id}'),
+          onDelete: () => state.deleteNote(notes[i].id),
+          child: _NoteCard(
+            note: notes[i], showTag: false,
+            compact: true, grid: false,
+            onTap: () => _openEditor(context, notes[i]),
+          ),
         ),
       ),
     );
@@ -191,12 +208,15 @@ class _MasonryGridState extends State<_MasonryGrid> {
         final colWidth = (constraints.maxWidth - 16 - 16 - 10) / 2;
 
         Widget buildCard(Note note) {
-          final card = Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _GridCard(
-              note: note, showTag: showTag, width: colWidth,
-              onTap: () => widget.onOpenEditor(note),
-              isDark: state.darkMode,
+          final card = SelectableCardWrapper(
+            itemId: note.id,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _GridCard(
+                note: note, showTag: showTag, width: colWidth,
+                onTap: () => widget.onOpenEditor(note),
+                isDark: state.darkMode,
+              ),
             ),
           );
           if (!canDrag) return KeyedSubtree(key: ValueKey(note.id), child: card);
@@ -275,7 +295,7 @@ class _SwipableCard extends StatelessWidget {
                   children: [
                     Text('Удалить?', style: GoogleFonts.fraunces(
                       fontSize: 18, fontWeight: FontWeight.w600, color: text,
-                    )),
+                     fontStyle: FontStyle.normal,)),
                     const SizedBox(height: 8),
                     Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(
                       fontSize: 13, color: textSec,
@@ -458,7 +478,7 @@ class _NoteCardState extends State<_NoteCard> {
               Expanded(
                 child: Text(note.title,
                   style: GoogleFonts.fraunces(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
+                      fontSize: 13, fontWeight: FontWeight.w600, color: textColor, fontStyle: FontStyle.normal,),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -472,7 +492,9 @@ class _NoteCardState extends State<_NoteCard> {
     if (grid) {
       return GestureDetector(
         onTap: onTap,
-        child: Container(
+        child: SelectionHighlight(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -492,7 +514,7 @@ class _NoteCardState extends State<_NoteCard> {
                 style: GoogleFonts.fraunces(
                   fontSize: 13, fontWeight: FontWeight.w600,
                   color: textColor, height: 1.25,
-                ),
+                 fontStyle: FontStyle.normal,),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -511,13 +533,16 @@ class _NoteCardState extends State<_NoteCard> {
             ],
           ),
         ),
+        ),
       );
     }
 
     // ── List view (view 1) ──
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SelectionHighlight(
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: cardBg,
@@ -544,7 +569,7 @@ class _NoteCardState extends State<_NoteCard> {
                           style: GoogleFonts.fraunces(
                             fontSize: 15, fontWeight: FontWeight.w600,
                             color: textColor, height: 1.25,
-                          ),
+                           fontStyle: FontStyle.normal,),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -595,6 +620,7 @@ class _NoteCardState extends State<_NoteCard> {
                 ),
               ),
           ],
+        ),
         ),
       ),
     );
@@ -654,7 +680,7 @@ class _GridCard extends StatelessWidget {
                 style: GoogleFonts.fraunces(
                   fontSize: 13, fontWeight: FontWeight.w600,
                   color: textColor, height: 1.25,
-                ),
+                 fontStyle: FontStyle.normal,),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -985,24 +1011,23 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       ),
                       Divider(height: 1, color: divider),
                       // ── Удалить ──
-                      if (widget.note != null)
-                        GestureDetector(
-                          onTap: () {
-                            _hideMenu();
-                            _showDeleteConfirm(context, isDark);
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.withValues(alpha: 0.75)),
-                                const SizedBox(width: 10),
-                                Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.red.withValues(alpha: 0.85))),
-                              ],
-                            ),
+                      GestureDetector(
+                        onTap: () {
+                          _hideMenu();
+                          _showDeleteConfirm(context, isDark);
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.withValues(alpha: 0.75)),
+                              const SizedBox(width: 10),
+                              Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.red.withValues(alpha: 0.85))),
+                            ],
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -1032,7 +1057,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             children: [
               Text('Цвет заметки', style: GoogleFonts.fraunces(
                 fontSize: 16, fontWeight: FontWeight.w600, color: text,
-              )),
+               fontStyle: FontStyle.normal,)),
               const SizedBox(height: 16),
               StatefulBuilder(
                 builder: (ctx2, setDialogState) => _buildColorWrapDialog(isDark, setDialogState),
@@ -1114,7 +1139,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             children: [
               Text('Удалить заметку?', style: GoogleFonts.fraunces(
                 fontSize: 18, fontWeight: FontWeight.w600, color: text,
-              )),
+               fontStyle: FontStyle.normal,)),
               const SizedBox(height: 8),
               Text(
                 widget.note?.title.isEmpty ?? true ? 'Без названия' : widget.note!.title,
@@ -1313,7 +1338,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         autofocus: widget.note == null,
                         style: GoogleFonts.fraunces(
                           fontSize: 24, fontWeight: FontWeight.w600, color: text,
-                        ),
+                         fontStyle: FontStyle.normal,),
                         decoration: InputDecoration(
                           filled: false,
                           border: InputBorder.none,
@@ -1323,7 +1348,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           hintStyle: GoogleFonts.fraunces(
                             fontSize: 24, fontWeight: FontWeight.w600,
                             color: textHint,
-                          ),
+                           fontStyle: FontStyle.normal,),
                           contentPadding: EdgeInsets.zero,
                           isDense: true,
                         ),
@@ -1497,7 +1522,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
           children: [
             Text('Удалить?', style: GoogleFonts.fraunces(
               fontSize: 18, fontWeight: FontWeight.w600, color: text,
-            )),
+             fontStyle: FontStyle.normal,)),
             const SizedBox(height: 8),
             Text(
               name.isEmpty ? 'Без названия' : name,

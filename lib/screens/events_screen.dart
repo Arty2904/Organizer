@@ -6,6 +6,18 @@ import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/selection_state.dart';
+
+const List<Color> kEventColors = [
+  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
+  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
+  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
+  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
+  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
+  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
+  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+];
+
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -63,7 +75,7 @@ class _EventsScreenState extends State<EventsScreen> {
         const SizedBox(height: 12),
         Text('Нет событий', style: GoogleFonts.fraunces(
           fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-        )),
+         fontStyle: FontStyle.normal,)),
       ],
     ),
   );
@@ -79,16 +91,19 @@ class _EventsScreenState extends State<EventsScreen> {
           child: child,
         ),
         itemCount: events.length,
-        itemBuilder: (ctx, i) => Padding(
+        itemBuilder: (ctx, i) => SelectableCardWrapper(
           key: ValueKey(events[i].id),
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _EventCard(
-            event: events[i],
-            showTag: state.eventsFilter == 'Все',
-            view: 1,
-            isDarkOverride: state.darkMode,
-            onTap: () => _openEditor(context, events[i]),
-            onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+          itemId: events[i].id,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _EventCard(
+              event: events[i],
+              showTag: state.eventsFilter == 'Все',
+              view: 1,
+              isDarkOverride: state.darkMode,
+              onTap: () => _openEditor(context, events[i]),
+              onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+            ),
           ),
         ),
       );
@@ -97,18 +112,22 @@ class _EventsScreenState extends State<EventsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: events.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _SwipableCard(
+      itemBuilder: (ctx, i) => SelectableCardWrapper(
         key: ValueKey(events[i].id),
-        itemKey: ValueKey('del-event-\${events[i].id}'),
-        padding: const EdgeInsets.only(bottom: 10),
-        onDelete: () => state.deleteEvent(events[i].id),
-        child: _EventCard(
-          event: events[i],
-          showTag: state.eventsFilter == 'Все',
-          view: 1,
-          isDarkOverride: state.darkMode,
-          onTap: () => _openEditor(context, events[i]),
-          onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+        itemId: events[i].id,
+        child: _SwipableCard(
+          key: ValueKey('sw-ev-${events[i].id}'),
+          itemKey: ValueKey('del-event-${events[i].id}'),
+          padding: const EdgeInsets.only(bottom: 10),
+          onDelete: () => state.deleteEvent(events[i].id),
+          child: _EventCard(
+            event: events[i],
+            showTag: state.eventsFilter == 'Все',
+            view: 1,
+            isDarkOverride: state.darkMode,
+            onTap: () => _openEditor(context, events[i]),
+            onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+          ),
         ),
       ),
     );
@@ -133,8 +152,28 @@ class _EventsScreenState extends State<EventsScreen> {
           child: child,
         ),
         itemCount: events.length,
-        itemBuilder: (ctx, i) => _EventCard(
+        itemBuilder: (ctx, i) => SelectableCardWrapper(
           key: ValueKey(events[i].id),
+          itemId: events[i].id,
+          child: _EventCard(
+            key: ValueKey('ev-compact-${events[i].id}'),
+            event: events[i],
+            showTag: false,
+            view: 3,
+            isDarkOverride: state.darkMode,
+            onTap: () => _openEditor(context, events[i]),
+            onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      itemCount: events.length,
+      itemBuilder: (ctx, i) => SelectableCardWrapper(
+        key: ValueKey(events[i].id),
+        itemId: events[i].id,
+        child: _EventCard(
           event: events[i],
           showTag: false,
           view: 3,
@@ -142,18 +181,6 @@ class _EventsScreenState extends State<EventsScreen> {
           onTap: () => _openEditor(context, events[i]),
           onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
         ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: events.length,
-      itemBuilder: (ctx, i) => _EventCard(
-        event: events[i],
-        showTag: false,
-        view: 3,
-        isDarkOverride: state.darkMode,
-        onTap: () => _openEditor(context, events[i]),
-        onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
       ),
     );
   }
@@ -199,13 +226,16 @@ class _EventsMasonryGridState extends State<_EventsMasonryGrid> {
       final colWidth = (constraints.maxWidth - 16 - 16 - 10) / 2;
 
       Widget buildCard(AppEvent e) {
-        final card = Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _EventGridCard(
-            event: e,
-            showTag: state.eventsFilter == 'Все',
-            isDark: isDark,
-            onTap: () => widget.onOpenEditor(e),
+        final card = SelectableCardWrapper(
+          itemId: e.id,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _EventGridCard(
+              event: e,
+              showTag: state.eventsFilter == 'Все',
+              isDark: isDark,
+              onTap: () => widget.onOpenEditor(e),
+            ),
           ),
         );
         if (!canDrag) return KeyedSubtree(key: ValueKey(e.id), child: card);
@@ -271,16 +301,22 @@ class _EventGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint('🃏 _EventGridCard build: isDark=$isDark asFeedback=$asFeedback cardBg=${asFeedback ? "OPAQUE" : "TRANSPARENT"}');
+    final bool hasColor = !asFeedback && event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
     final Color cardBg = asFeedback
         ? (isDark ? AppColors.darkBg : AppColors.lightBg)
-        : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
-    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+        : hasColor
+            ? kEventColors[event.colorIndex - 1]
+            : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
+    final textColor = hasColor ? const Color(0xFF2A1F14) : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasColor ? AppColors.lightTextDate : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
+    final borderColor = hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder);
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SelectionHighlight(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: cardBg,
@@ -296,7 +332,7 @@ class _EventGridCard extends StatelessWidget {
                 event.title,
                 style: GoogleFonts.fraunces(
                   fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-                ),
+                 fontStyle: FontStyle.normal,),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -335,6 +371,7 @@ class _EventGridCard extends StatelessWidget {
               ),
             ],
           ],
+        ),
         ),
       ),
     );
@@ -545,7 +582,7 @@ class _SwipableCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text)),
+                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
                     const SizedBox(height: 8),
                     Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
                     const SizedBox(height: 20),
@@ -626,10 +663,13 @@ class _EventCardState extends State<_EventCard> {
 
     final state = context.watch<AppState>();
     final isDark = widget.isDarkOverride ?? state.darkMode;
-    final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
-    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
-    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
+    final Color cardBg = hasColor
+        ? kEventColors[event.colorIndex - 1]
+        : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
+    final textColor = hasColor ? const Color(0xFF2A1F14) : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasColor ? AppColors.lightTextDate : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
+    final divider = hasColor ? const Color(0x33785028) : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
     final catColor = state.folderColor(event.category);
     final maxTasks = view == 2 ? 3 : event.tasks.length;
     final tasks = event.tasks.take(maxTasks).toList();
@@ -639,15 +679,19 @@ class _EventCardState extends State<_EventCard> {
       return GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: divider))),
+          padding: EdgeInsets.symmetric(vertical: 11, horizontal: hasColor ? 8 : 2),
+          decoration: BoxDecoration(
+            color: hasColor ? cardBg : Colors.transparent,
+            borderRadius: hasColor ? BorderRadius.circular(10) : BorderRadius.zero,
+            border: hasColor ? null : Border(bottom: BorderSide(color: divider)),
+          ),
           child: Row(
             children: [
               Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
               const SizedBox(width: 10),
               Expanded(child: Text(event.title, style: GoogleFonts.fraunces(
                 fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-              ), overflow: TextOverflow.ellipsis)),
+               fontStyle: FontStyle.normal,), overflow: TextOverflow.ellipsis)),
               if (event.reminderDate != null)
                 Text(formatDate(event.reminderDate!), style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
             ],
@@ -658,12 +702,15 @@ class _EventCardState extends State<_EventCard> {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SelectionHighlight(
+        borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
+        child: Container(
+        width: double.infinity,
         padding: EdgeInsets.all(view == 2 ? 12 : 14),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 1),
+          border: Border.all(color: hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder), width: 1),
         ),
         child: Stack(
           children: [
@@ -678,7 +725,7 @@ class _EventCardState extends State<_EventCard> {
                       const SizedBox(width: 7),
                       Expanded(child: Text(event.title, style: GoogleFonts.fraunces(
                         fontSize: view == 2 ? 13 : 15, fontWeight: FontWeight.w600, color: textColor,
-                      ))),
+                       fontStyle: FontStyle.normal,))),
                     ],
                   ),
                 ),
@@ -791,6 +838,7 @@ class _EventCardState extends State<_EventCard> {
                 ),
               ),
           ],
+        ),
         ),
       ),
     );
@@ -976,7 +1024,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
                 child: Text('Повторять', style: GoogleFonts.fraunces(
                   fontSize: 16, fontWeight: FontWeight.w600, color: text,
-                )),
+                 fontStyle: FontStyle.normal,)),
               ),
               Divider(color: divider, height: 1),
               ...labels.entries.map((e) {
@@ -1028,7 +1076,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             children: [
               Text('Через сколько дней?', style: GoogleFonts.fraunces(
                 fontSize: 16, fontWeight: FontWeight.w600, color: text,
-              )),
+               fontStyle: FontStyle.normal,)),
               const SizedBox(height: 16),
               TextField(
                 controller: _customDaysCtrl,
@@ -1142,11 +1190,11 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                   child: TextField(
                     controller: _titleCtrl,
                     autofocus: widget.event == null,
-                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text),
+                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,),
                     decoration: InputDecoration(
                       filled: false, border: InputBorder.none,
                       hintText: 'Название события',
-                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint),
+                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint, fontStyle: FontStyle.normal,),
                       contentPadding: EdgeInsets.zero, isDense: true,
                     ),
                   ),
@@ -1476,7 +1524,7 @@ class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
                       fontSize: selected ? 20 : 15,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                       color: selected ? text : textSec,
-                    ),
+                     fontStyle: FontStyle.normal,),
                   ),
                 );
               },
@@ -1545,7 +1593,7 @@ class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
             // Заголовок
             Text('Дата и время', style: GoogleFonts.fraunces(
               fontSize: 17, fontWeight: FontWeight.w600, color: text,
-            )),
+             fontStyle: FontStyle.normal,)),
             const SizedBox(height: 20),
 
             // ── Барабаны даты ──
@@ -1603,7 +1651,7 @@ class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(' : ', style: GoogleFonts.fraunces(
-                    fontSize: 22, fontWeight: FontWeight.w600, color: text)),
+                    fontSize: 22, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
                 ),
                 _drum(
                   ctrl: _minuteCtrl,

@@ -52,6 +52,7 @@ class TodoGroup {
   String category;
   List<TodoItem> items;
   DateTime createdAt;
+  int colorIndex;
 
   TodoGroup({
     required this.id,
@@ -59,6 +60,7 @@ class TodoGroup {
     this.category = '',
     List<TodoItem>? items,
     DateTime? createdAt,
+    this.colorIndex = 0,
   })  : items = items ?? [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -71,6 +73,7 @@ class TodoGroup {
     'category': category,
     'items': items.map((i) => i.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
+    'colorIndex': colorIndex,
   };
 
   factory TodoGroup.fromJson(Map<String, dynamic> j) => TodoGroup(
@@ -79,6 +82,7 @@ class TodoGroup {
     category: j['category'] ?? '',
     items: (j['items'] as List? ?? []).map((e) => TodoItem.fromJson(e)).toList(),
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
+    colorIndex: j['colorIndex'] ?? 0,
   );
 }
 
@@ -95,6 +99,7 @@ class AppEvent {
   int? customDays; // for repeat == custom
   List<EventTask> tasks;
   DateTime createdAt;
+  int colorIndex;
 
   AppEvent({
     required this.id,
@@ -106,6 +111,7 @@ class AppEvent {
     this.customDays,
     List<EventTask>? tasks,
     DateTime? createdAt,
+    this.colorIndex = 0,
   })  : tasks = tasks ?? [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -119,6 +125,7 @@ class AppEvent {
     'customDays': customDays,
     'tasks': tasks.map((t) => t.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
+    'colorIndex': colorIndex,
   };
 
   factory AppEvent.fromJson(Map<String, dynamic> j) => AppEvent(
@@ -131,6 +138,7 @@ class AppEvent {
     customDays: j['customDays'],
     tasks: (j['tasks'] as List? ?? []).map((e) => EventTask.fromJson(e)).toList(),
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
+    colorIndex: j['colorIndex'] ?? 0,
   );
 }
 

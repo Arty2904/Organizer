@@ -6,6 +6,18 @@ import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/selection_state.dart';
+
+const List<Color> kTodoColors = [
+  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
+  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
+  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
+  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
+  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
+  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
+  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+];
+
 
 class TodosScreen extends StatefulWidget {
   const TodosScreen({super.key});
@@ -83,7 +95,7 @@ class _TodosScreenState extends State<TodosScreen> {
         const SizedBox(height: 12),
         Text('Нет дел', style: GoogleFonts.fraunces(
           fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-        )),
+         fontStyle: FontStyle.normal,)),
       ],
     ),
   );
@@ -95,9 +107,36 @@ class _TodosScreenState extends State<TodosScreen> {
         itemCount: todos.length,
         onReorder: (o, n) => state.reorderTodo(o, n),
         proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
-        itemBuilder: (ctx, i) => Padding(
+        itemBuilder: (ctx, i) => SelectableCardWrapper(
           key: ValueKey(todos[i].id),
+          itemId: todos[i].id,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _TodoCard(
+              group: todos[i],
+              showTag: state.todosFilter == 'Все',
+              view: 1,
+              expanded: false,
+              onToggleExpand: () {},
+              onTap: () => _openEditor(context, todos[i]),
+              onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      itemCount: todos.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (ctx, i) => SelectableCardWrapper(
+        key: ValueKey(todos[i].id),
+        itemId: todos[i].id,
+        child: _SwipableCard(
+          key: ValueKey('sw-td-${todos[i].id}'),
+          itemKey: ValueKey('del-todo-${todos[i].id}'),
           padding: const EdgeInsets.only(bottom: 10),
+          onDelete: () => state.deleteTodo(todos[i].id),
           child: _TodoCard(
             group: todos[i],
             showTag: state.todosFilter == 'Все',
@@ -107,26 +146,6 @@ class _TodosScreenState extends State<TodosScreen> {
             onTap: () => _openEditor(context, todos[i]),
             onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
           ),
-        ),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: todos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _SwipableCard(
-        key: ValueKey(todos[i].id),
-        itemKey: ValueKey('del-todo-${todos[i].id}'),
-        padding: const EdgeInsets.only(bottom: 10),
-        onDelete: () => state.deleteTodo(todos[i].id),
-        child: _TodoCard(
-          group: todos[i],
-          showTag: state.todosFilter == 'Все',
-          view: 1,
-          expanded: false,
-          onToggleExpand: () {},
-          onTap: () => _openEditor(context, todos[i]),
-          onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
         ),
       ),
     );
@@ -174,40 +193,48 @@ class _TodosScreenState extends State<TodosScreen> {
                 itemCount: todos.length,
                 onReorder: (o, n) => state.reorderTodo(o, n),
                 proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
-                itemBuilder: (ctx, i) => _TodoCard(
+                itemBuilder: (ctx, i) => SelectableCardWrapper(
                   key: ValueKey(todos[i].id),
-                  group: todos[i],
-                  showTag: false,
-                  view: 3,
-                  expanded: _expandedIds.contains(todos[i].id),
-                  onToggleExpand: () => setState(() {
-                    if (_expandedIds.contains(todos[i].id)) {
-                      _expandedIds.remove(todos[i].id);
-                    } else {
-                      _expandedIds.add(todos[i].id);
-                    }
-                  }),
-                  onTap: () => _openEditor(context, todos[i]),
-                  onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                  itemId: todos[i].id,
+                  child: _TodoCard(
+                    key: ValueKey('td-c-${todos[i].id}'),
+                    group: todos[i],
+                    showTag: false,
+                    view: 3,
+                    expanded: _expandedIds.contains(todos[i].id),
+                    onToggleExpand: () => setState(() {
+                      if (_expandedIds.contains(todos[i].id)) {
+                        _expandedIds.remove(todos[i].id);
+                      } else {
+                        _expandedIds.add(todos[i].id);
+                      }
+                    }),
+                    onTap: () => _openEditor(context, todos[i]),
+                    onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                  ),
                 ),
               )
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 itemCount: todos.length,
-                itemBuilder: (ctx, i) => _TodoCard(
-                  group: todos[i],
-                  showTag: false,
-                  view: 3,
-                  expanded: _expandedIds.contains(todos[i].id),
-                  onToggleExpand: () => setState(() {
-                    if (_expandedIds.contains(todos[i].id)) {
-                      _expandedIds.remove(todos[i].id);
-                    } else {
-                      _expandedIds.add(todos[i].id);
-                    }
-                  }),
-                  onTap: () => _openEditor(context, todos[i]),
-                  onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                itemBuilder: (ctx, i) => SelectableCardWrapper(
+                  key: ValueKey(todos[i].id),
+                  itemId: todos[i].id,
+                  child: _TodoCard(
+                    group: todos[i],
+                    showTag: false,
+                    view: 3,
+                    expanded: _expandedIds.contains(todos[i].id),
+                    onToggleExpand: () => setState(() {
+                      if (_expandedIds.contains(todos[i].id)) {
+                        _expandedIds.remove(todos[i].id);
+                      } else {
+                        _expandedIds.add(todos[i].id);
+                      }
+                    }),
+                    onTap: () => _openEditor(context, todos[i]),
+                    onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                  ),
                 ),
             ),
           ),
@@ -259,13 +286,16 @@ class _TodosMasonryGridState extends State<_TodosMasonryGrid> {
         final colW = (constraints.maxWidth - 32 - 10) / 2;
 
         Widget buildCard(TodoGroup g) {
-          final card = Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _TodoCard(
-              group: g, showTag: showTag, view: 2,
-              expanded: false, onToggleExpand: () {},
-              onTap: () => widget.onOpenEditor(g),
-              onCheckItem: (idx) => context.read<AppState>().toggleTodoItem(g.id, idx),
+          final card = SelectableCardWrapper(
+            itemId: g.id,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TodoCard(
+                group: g, showTag: showTag, view: 2,
+                expanded: false, onToggleExpand: () {},
+                onTap: () => widget.onOpenEditor(g),
+                onCheckItem: (idx) => context.read<AppState>().toggleTodoItem(g.id, idx),
+              ),
             ),
           );
           if (!canDrag) return KeyedSubtree(key: ValueKey(g.id), child: card);
@@ -502,7 +532,7 @@ class _SwipableCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text)),
+                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
                     const SizedBox(height: 8),
                     Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
                     const SizedBox(height: 20),
@@ -587,10 +617,13 @@ class _TodoCardState extends State<_TodoCard> {
 
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
-    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
-    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final bool hasColor = group.colorIndex > 0 && group.colorIndex <= kTodoColors.length;
+    final Color cardBg = hasColor
+        ? kTodoColors[group.colorIndex - 1]
+        : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
+    final textColor = hasColor ? const Color(0xFF2A1F14) : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasColor ? AppColors.lightTextDate : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
+    final divider = hasColor ? const Color(0x33785028) : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
     final catColor = state.folderColor(group.category);
 
     // ── Compact view (view 3) — expandable rows ──
@@ -601,7 +634,9 @@ class _TodoCardState extends State<_TodoCard> {
         children: [
           Container(
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(
+              color: hasColor ? cardBg : Colors.transparent,
+              borderRadius: hasColor ? BorderRadius.circular(10) : BorderRadius.zero,
+              border: hasColor ? null : Border(bottom: BorderSide(
                 color: expanded ? Colors.transparent : divider,
               )),
             ),
@@ -629,7 +664,7 @@ class _TodoCardState extends State<_TodoCard> {
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       child: Text(group.name, style: GoogleFonts.fraunces(
                         fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                       fontStyle: FontStyle.normal,), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ),
@@ -738,7 +773,7 @@ class _TodoCardState extends State<_TodoCard> {
             color: cardBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+              color: hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
               width: 1,
             ),
           ),
@@ -784,7 +819,9 @@ class _TodoCardState extends State<_TodoCard> {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SelectionHighlight(
+        borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
+        child: Container(
         padding: EdgeInsets.all(view == 2 ? 12 : 14),
         decoration: BoxDecoration(
           color: cardBg,
@@ -811,7 +848,7 @@ class _TodoCardState extends State<_TodoCard> {
                               fontSize: view == 2 ? 13 : 15,
                               fontWeight: FontWeight.w600,
                               color: textColor,
-                            ),
+                             fontStyle: FontStyle.normal,),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -892,6 +929,7 @@ class _TodoCardState extends State<_TodoCard> {
                 ),
               ),
           ],
+        ),
         ),
       ),
     );
@@ -1121,11 +1159,11 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                   child: TextField(
                     controller: _nameCtrl,
                     autofocus: widget.group == null,
-                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text),
+                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,),
                     decoration: InputDecoration(
                       filled: false, border: InputBorder.none,
                       hintText: 'Название списка',
-                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint),
+                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint, fontStyle: FontStyle.normal,),
                       contentPadding: EdgeInsets.zero, isDense: true,
                     ),
                   ),
