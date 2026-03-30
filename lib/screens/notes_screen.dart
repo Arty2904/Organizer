@@ -403,7 +403,6 @@ class _NoteCard extends StatefulWidget {
   final VoidCallback onTap;
 
   const _NoteCard({
-    super.key,
     required this.note,
     required this.showTag,
     required this.compact,
@@ -428,9 +427,16 @@ class _NoteCardState extends State<_NoteCard> {
 
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
-    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final Color cardBg = note.colorIndex > 0 && note.colorIndex <= kNoteColors.length
+        ? kNoteColors[note.colorIndex - 1]
+        : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
+    final bool hasCustomColor = note.colorIndex > 0;
+    final textColor = hasCustomColor
+        ? const Color(0xFF2A1F14)
+        : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasCustomColor
+        ? AppColors.lightTextDate
+        : (isDark ? AppColors.darkTextDate : AppColors.lightTextDate);
     final catColor = state.folderColor(note.category);
 
     // ── Compact view (view 3) — no date ──
@@ -473,7 +479,7 @@ class _NoteCardState extends State<_NoteCard> {
             color: cardBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+              color: hasCustomColor ? Colors.transparent : (isDark ? AppColors.darkDivider : AppColors.lightDivider),
               width: 0.5,
             ),
           ),
@@ -517,7 +523,7 @@ class _NoteCardState extends State<_NoteCard> {
           color: cardBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+            color: hasCustomColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
             width: 1,
           ),
         ),
@@ -613,10 +619,19 @@ class _GridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
-    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
-    final borderColor = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final Color cardBg = note.colorIndex > 0 && note.colorIndex <= kNoteColors.length
+        ? kNoteColors[note.colorIndex - 1]
+        : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
+    final bool hasCustomColor = note.colorIndex > 0;
+    final textColor = hasCustomColor
+        ? const Color(0xFF2A1F14)
+        : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasCustomColor
+        ? AppColors.lightTextDate
+        : (isDark ? AppColors.darkTextDate : AppColors.lightTextDate);
+    final borderColor = hasCustomColor
+        ? Colors.transparent
+        : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
 
     return GestureDetector(
       onTap: onTap,
@@ -747,8 +762,8 @@ class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
                 ),
               ),
               childWhenDragging: _SizedPlaceholder(
-                child: widget.child,
                 visible: false,
+                child: widget.child,
               ),
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 120),
@@ -761,7 +776,7 @@ class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOut,
                       child: isTarget
-                          ? _SizedPlaceholder(child: widget.child, visible: true)
+                          ? _SizedPlaceholder(visible: true, child: widget.child)
                           : const SizedBox.shrink(),
                     ),
                     // Сама карточка с подсветкой цели
@@ -853,6 +868,18 @@ class _SizedPlaceholderState extends State<_SizedPlaceholder> {
 }
 
 // ─── Note Editor ─────────────────────────────────────────
+// 21 preset note background colors
+// Same 21 colors as folder editor palette (sidebar.dart)
+const List<Color> kNoteColors = [
+  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
+  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
+  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
+  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
+  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
+  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
+  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+];
+
 class NoteEditorScreen extends StatefulWidget {
   final Note? note;
   final String initialCategory;
@@ -866,9 +893,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late TextEditingController _titleCtrl;
   late TextEditingController _bodyCtrl;
   late String _category;
+  late int _colorIndex;
   bool _tagMenuOpen = false;
-
-  // Tags loaded from state in build()
+  final LayerLink _menuLayerLink = LayerLink();
+  OverlayEntry? _menuOverlayEntry;
 
   @override
   void initState() {
@@ -876,35 +904,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _titleCtrl = TextEditingController(text: widget.note?.title ?? '');
     _bodyCtrl = TextEditingController(text: widget.note?.body ?? '');
     _category = widget.note?.category ?? widget.initialCategory ?? '';
+    _colorIndex = widget.note?.colorIndex ?? 0;
   }
 
   @override
   void dispose() {
+    _menuOverlayEntry?.remove();
+    _menuOverlayEntry = null;
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     super.dispose();
-  }
-
-  void _save() {
-    final state = context.read<AppState>();
-    final title = _titleCtrl.text.trim().isEmpty
-        ? 'Без названия'
-        : _titleCtrl.text.trim();
-    if (widget.note != null) {
-      widget.note!.title = title;
-      widget.note!.body = _bodyCtrl.text;
-      widget.note!.category = _category;
-      widget.note!.createdAt = DateTime.now();
-      state.updateNote(widget.note!);
-    } else {
-      state.addNote(Note(
-        id: const Uuid().v4(),
-        title: title,
-        body: _bodyCtrl.text,
-        category: _category,
-      ));
-    }
-    Navigator.pop(context);
   }
 
   void _delete() {
@@ -914,54 +923,375 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     Navigator.pop(context);
   }
 
+  void _hideMenu() {
+    _menuOverlayEntry?.remove();
+    _menuOverlayEntry = null;
+  }
+
+  void _showDropdownMenu(BuildContext context, bool isDark) {
+    _hideMenu();
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    _menuOverlayEntry = OverlayEntry(
+      builder: (_) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _hideMenu,
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.transparent)),
+            CompositedTransformFollower(
+              link: _menuLayerLink,
+              showWhenUnlinked: false,
+              targetAnchor: Alignment.bottomRight,
+              followerAnchor: Alignment.topRight,
+              offset: const Offset(8, 4),
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 220,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: divider, width: 0.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                        blurRadius: 16, offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ── Цвет ──
+                      GestureDetector(
+                        onTap: () {
+                          _hideMenu();
+                          _showColorPickerPopup(context, isDark);
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.palette_outlined, size: 16, color: AppColors.terracotta),
+                              const SizedBox(width: 10),
+                              Text('Цвет', style: GoogleFonts.dmSans(fontSize: 13, color: text)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Divider(height: 1, color: divider),
+                      // ── Удалить ──
+                      if (widget.note != null)
+                        GestureDetector(
+                          onTap: () {
+                            _hideMenu();
+                            _showDeleteConfirm(context, isDark);
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.withValues(alpha: 0.75)),
+                                const SizedBox(width: 10),
+                                Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.red.withValues(alpha: 0.85))),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_menuOverlayEntry!);
+  }
+
+  void _showColorPickerPopup(BuildContext context, bool isDark) {
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (ctx) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Цвет заметки', style: GoogleFonts.fraunces(
+                fontSize: 16, fontWeight: FontWeight.w600, color: text,
+              )),
+              const SizedBox(height: 16),
+              StatefulBuilder(
+                builder: (ctx2, setDialogState) => _buildColorWrapDialog(isDark, setDialogState),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorWrapDialog(bool isDark, StateSetter setDialogState) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: List.generate(22, (i) {
+        final sel = _colorIndex == i;
+        if (i == 0) {
+          return GestureDetector(
+            onTap: () {
+              setState(() => _colorIndex = 0);
+              setDialogState(() {});
+            },
+            child: Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.lightCardAlt,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: sel ? AppColors.terracotta : (isDark ? AppColors.darkDivider : AppColors.lightDivider),
+                  width: sel ? 2.5 : 1,
+                ),
+              ),
+              child: Icon(Icons.block_rounded, size: 16,
+                  color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
+            ),
+          );
+        }
+        final color = kNoteColors[i - 1];
+        return GestureDetector(
+          onTap: () {
+            setState(() => _colorIndex = i);
+            setDialogState(() {});
+          },
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: sel ? Colors.white : Colors.transparent,
+                width: 2.5,
+              ),
+              boxShadow: sel ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 6)] : null,
+            ),
+            child: sel ? const Icon(Icons.check_rounded, size: 18, color: Colors.white) : null,
+          ),
+        );
+      }),
+    );
+  }
+
+  void _showDeleteConfirm(BuildContext context, bool isDark) {
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (ctx) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Удалить заметку?', style: GoogleFonts.fraunces(
+                fontSize: 18, fontWeight: FontWeight.w600, color: text,
+              )),
+              const SizedBox(height: 8),
+              Text(
+                widget.note?.title.isEmpty ?? true ? 'Без названия' : widget.note!.title,
+                style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('Отмена', style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: textSec,
+                        )),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _delete();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('Удалить', style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white,
+                        )),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorWrap(bool isDark) {
+    // 0 = reset, 1..21 = color
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: List.generate(22, (i) {
+        final sel = _colorIndex == i;
+        if (i == 0) {
+          return GestureDetector(
+            onTap: () => setState(() => _colorIndex = 0),
+            child: Container(
+              width: 26, height: 26,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.lightCardAlt,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: sel ? AppColors.terracotta : (isDark ? AppColors.darkDivider : AppColors.lightDivider),
+                  width: sel ? 2 : 1,
+                ),
+              ),
+              child: Icon(Icons.block_rounded, size: 12,
+                  color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
+            ),
+          );
+        }
+        final color = kNoteColors[i - 1];
+        return GestureDetector(
+          onTap: () => setState(() => _colorIndex = i),
+          child: Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: sel ? Colors.white : Colors.transparent,
+                width: 2,
+              ),
+              boxShadow: sel ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 4)] : null,
+            ),
+            child: sel ? Icon(Icons.check_rounded, size: 13, color: Colors.white) : null,
+          ),
+        );
+      }),
+    );
+  }
+
+  bool get _hasContent =>
+      _titleCtrl.text.trim().isNotEmpty || _bodyCtrl.text.trim().isNotEmpty;
+
+  void _saveAndPop() {
+    if (!_hasContent && widget.note == null) {
+      Navigator.pop(context);
+      return;
+    }
+    final state = context.read<AppState>();
+    final title = _titleCtrl.text.trim().isEmpty ? 'Без названия' : _titleCtrl.text.trim();
+    if (widget.note != null) {
+      widget.note!.title = title;
+      widget.note!.body = _bodyCtrl.text;
+      widget.note!.category = _category;
+      widget.note!.colorIndex = _colorIndex;
+      widget.note!.createdAt = DateTime.now();
+      state.updateNote(widget.note!);
+    } else {
+      state.addNote(Note(
+        id: const Uuid().v4(),
+        title: title,
+        body: _bodyCtrl.text,
+        category: _category,
+        colorIndex: _colorIndex,
+      ));
+    }
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final bg = isDark ? AppColors.darkBg2 : AppColors.lightBg2;
-    final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textHint = isDark ? const Color(0x4DE6AF78) : const Color(0x6E785028);
-    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
-    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    // Note background: custom color or default
+    final Color noteBg = _colorIndex > 0 && _colorIndex <= kNoteColors.length
+        ? kNoteColors[_colorIndex - 1]
+        : (isDark ? AppColors.darkBg2 : AppColors.lightBg2);
+    final text = isDark && _colorIndex == 0 ? AppColors.darkText : const Color(0xFF2A1F14);
+    const textHint = Color(0x6E785028);
+    final textSec = isDark && _colorIndex == 0 ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final divider = isDark && _colorIndex == 0 ? AppColors.darkDivider : const Color(0x33785028);
     final charCount = _bodyCtrl.text.length;
     final catColor = state.folderColor(_category);
     final editDate = widget.note?.createdAt ?? DateTime.now();
-    final accent = isDark ? AppColors.terracotta : AppColors.terracottaLight;
 
     return Theme(
       data: buildTheme(isDark),
-      child: GestureDetector(
-        onTap: () { if (_tagMenuOpen) setState(() => _tagMenuOpen = false); },
-        child: Scaffold(
-          backgroundColor: bg,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _saveAndPop();
+        },
+        child: GestureDetector(
+          onTap: () { if (_tagMenuOpen) setState(() => _tagMenuOpen = false); },
+          child: Scaffold(
+          backgroundColor: noteBg,
           appBar: AppBar(
-            backgroundColor: bg,
+            backgroundColor: noteBg,
             surfaceTintColor: Colors.transparent,
             shadowColor: Colors.transparent,
             leading: IconButton(
               icon: Icon(Icons.arrow_back_ios_rounded, size: 18, color: text),
-              onPressed: () => Navigator.pop(context),
+              onPressed: _saveAndPop,
             ),
             title: Text('Заметка',
               style: GoogleFonts.fraunces(
                 fontSize: 15, fontWeight: FontWeight.w600,
+                fontStyle: FontStyle.normal,
                 color: text,
               ),
             ),
             actions: [
-              if (widget.note != null)
-                IconButton(
-                  icon: Icon(Icons.delete_outline_rounded,
-                      color: Colors.red.withValues(alpha: 0.6), size: 20),
-                  onPressed: _delete,
-                ),
-              TextButton(
-                onPressed: _save,
-                child: Text('ГОТОВО',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12, fontWeight: FontWeight.w800,
-                    color: accent,
-                  ),
+              CompositedTransformTarget(
+                link: _menuLayerLink,
+                child: IconButton(
+                  icon: Icon(Icons.more_vert_rounded, size: 22, color: text),
+                  onPressed: () => _showDropdownMenu(context, isDark),
                 ),
               ),
             ],
@@ -1141,7 +1471,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

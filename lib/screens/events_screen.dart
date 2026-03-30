@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
 import '../models/models.dart';
@@ -70,19 +69,44 @@ class _EventsScreenState extends State<EventsScreen> {
   );
 
   Widget _listView(BuildContext context, List<AppEvent> events, AppState state) {
+    if (state.eventsSort == 'manual') {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        onReorder: (o, n) => state.reorderEvent(o, n),
+        proxyDecorator: (child, index, animation) => Material(
+          color: Colors.transparent,
+          elevation: 0,
+          child: child,
+        ),
+        itemCount: events.length,
+        itemBuilder: (ctx, i) => Padding(
+          key: ValueKey(events[i].id),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _EventCard(
+            event: events[i],
+            showTag: state.eventsFilter == 'Все',
+            view: 1,
+            isDarkOverride: state.darkMode,
+            onTap: () => _openEditor(context, events[i]),
+            onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: events.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => _SwipableCard(
         key: ValueKey(events[i].id),
-        itemKey: ValueKey('del-event-${events[i].id}'),
+        itemKey: ValueKey('del-event-\${events[i].id}'),
         padding: const EdgeInsets.only(bottom: 10),
         onDelete: () => state.deleteEvent(events[i].id),
         child: _EventCard(
           event: events[i],
           showTag: state.eventsFilter == 'Все',
           view: 1,
+          isDarkOverride: state.darkMode,
           onTap: () => _openEditor(context, events[i]),
           onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
         ),
@@ -91,23 +115,35 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Widget _gridView(BuildContext context, List<AppEvent> events, AppState state) {
-    return MasonryGridView.count(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      crossAxisCount: 2,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      itemCount: events.length,
-      itemBuilder: (ctx, i) => _EventCard(
-        event: events[i],
-        showTag: state.eventsFilter == 'Все',
-        view: 2,
-        onTap: () => _openEditor(context, events[i]),
-        onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
-      ),
+    return _EventsMasonryGrid(
+      events: events,
+      state: state,
+      onOpenEditor: (e) => _openEditor(context, e),
     );
   }
 
   Widget _compactView(BuildContext context, List<AppEvent> events, AppState state) {
+    if (state.eventsSort == 'manual') {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        onReorder: (o, n) => state.reorderEvent(o, n),
+        proxyDecorator: (child, index, animation) => Material(
+          color: Colors.transparent,
+          elevation: 0,
+          child: child,
+        ),
+        itemCount: events.length,
+        itemBuilder: (ctx, i) => _EventCard(
+          key: ValueKey(events[i].id),
+          event: events[i],
+          showTag: false,
+          view: 3,
+          isDarkOverride: state.darkMode,
+          onTap: () => _openEditor(context, events[i]),
+          onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: events.length,
@@ -115,6 +151,7 @@ class _EventsScreenState extends State<EventsScreen> {
         event: events[i],
         showTag: false,
         view: 3,
+        isDarkOverride: state.darkMode,
         onTap: () => _openEditor(context, events[i]),
         onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
       ),
@@ -126,6 +163,353 @@ class _EventsScreenState extends State<EventsScreen> {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (_) => EventEditorDialog(event: event),
+    );
+  }
+}
+
+
+// ─── Events Masonry Grid with drag support ────────────────
+class _EventsMasonryGrid extends StatefulWidget {
+  final List<AppEvent> events;
+  final AppState state;
+  final void Function(AppEvent) onOpenEditor;
+  const _EventsMasonryGrid({required this.events, required this.state, required this.onOpenEditor});
+
+  @override
+  State<_EventsMasonryGrid> createState() => _EventsMasonryGridState();
+}
+
+class _EventsMasonryGridState extends State<_EventsMasonryGrid> {
+  final ValueNotifier<String?> _dragState = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _dragState.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final events = widget.events;
+    final canDrag = state.eventsSort == 'manual';
+    final isDark = state.darkMode;
+
+    return LayoutBuilder(builder: (ctx, constraints) {
+      final colWidth = (constraints.maxWidth - 16 - 16 - 10) / 2;
+
+      Widget buildCard(AppEvent e) {
+        final card = Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _EventGridCard(
+            event: e,
+            showTag: state.eventsFilter == 'Все',
+            isDark: isDark,
+            onTap: () => widget.onOpenEditor(e),
+          ),
+        );
+        if (!canDrag) return KeyedSubtree(key: ValueKey(e.id), child: card);
+        final feedbackCard = _EventGridCard(
+          event: e,
+          showTag: state.eventsFilter == 'Все',
+          isDark: isDark,
+          asFeedback: true,
+          onTap: () {},
+        );
+        return _DraggableMasonryCard(
+          key: ValueKey(e.id),
+          itemId: e.id,
+          dragState: _dragState,
+          feedbackWidth: colWidth,
+          onReorder: (fromId, toId) =>
+              context.read<AppState>().reorderEventById(fromId, toId),
+          feedbackChild: feedbackCard,
+          child: card,
+        );
+      }
+
+      final left  = [for (int i = 0; i < events.length; i += 2) events[i]];
+      final right = [for (int i = 1; i < events.length; i += 2) events[i]];
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: colWidth,
+              child: Column(children: left.map(buildCard).toList()),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: colWidth,
+              child: Column(children: right.map(buildCard).toList()),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+// ─── Event Grid Card (StatelessWidget, no context.watch — safe in drag feedback) ──
+class _EventGridCard extends StatelessWidget {
+  final AppEvent event;
+  final bool showTag;
+  final bool isDark;
+  final VoidCallback onTap;
+  final bool asFeedback;
+
+  const _EventGridCard({
+    required this.event,
+    required this.showTag,
+    required this.isDark,
+    required this.onTap,
+    this.asFeedback = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('🃏 _EventGridCard build: isDark=$isDark asFeedback=$asFeedback cardBg=${asFeedback ? "OPAQUE" : "TRANSPARENT"}');
+    final Color cardBg = asFeedback
+        ? (isDark ? AppColors.darkBg : AppColors.lightBg)
+        : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (event.title.isNotEmpty)
+              Text(
+                event.title,
+                style: GoogleFonts.fraunces(
+                  fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (event.body.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                event.body,
+                style: GoogleFonts.dmSans(fontSize: 11, color: textSec, height: 1.4),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (event.reminderDate != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.terracotta.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.notifications_outlined, size: 11, color: AppColors.terracotta),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        formatDateTime(event.reminderDate),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ─── Draggable Masonry Card (shared) ─────────────────────
+class _DraggableMasonryCard extends StatefulWidget {
+  final String itemId;
+  final void Function(String fromId, String toId) onReorder;
+  final ValueNotifier<String?> dragState;
+  final Widget child;
+  final Widget feedbackChild;
+  final double feedbackWidth;
+
+  const _DraggableMasonryCard({
+    super.key,
+    required this.itemId,
+    required this.onReorder,
+    required this.dragState,
+    required this.child,
+    required this.feedbackChild,
+    required this.feedbackWidth,
+  });
+
+  @override
+  State<_DraggableMasonryCard> createState() => _DraggableMasonryCardState();
+}
+
+class _DraggableMasonryCardState extends State<_DraggableMasonryCard> {
+  static String? _draggingIdFrom(String? v) {
+    if (v == null) return null;
+    return v.split('->')[0];
+  }
+
+  static String? _targetIdFrom(String? v) {
+    if (v == null || !v.contains('->')) return null;
+    return v.split('->')[1];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: widget.dragState,
+      builder: (ctx, dragVal, _) {
+        final isMe = _draggingIdFrom(dragVal) == widget.itemId;
+        final isTarget = _targetIdFrom(dragVal) == widget.itemId;
+
+        return DragTarget<String>(
+          onWillAcceptWithDetails: (details) {
+            if (details.data == widget.itemId) return false;
+            widget.dragState.value = '${details.data}->${widget.itemId}';
+            return true;
+          },
+          onLeave: (fromId) {
+            if (fromId != null) widget.dragState.value = fromId;
+          },
+          onAcceptWithDetails: (details) {
+            widget.dragState.value = null;
+            if (details.data != widget.itemId) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                widget.onReorder(details.data, widget.itemId);
+              });
+            }
+          },
+          builder: (ctx, candidateData, rejectedData) {
+            return LongPressDraggable<String>(
+              data: widget.itemId,
+              delay: const Duration(milliseconds: 350),
+              onDragStarted: () => widget.dragState.value = widget.itemId,
+              onDragEnd: (_) => widget.dragState.value = null,
+              onDraggableCanceled: (_, __) => widget.dragState.value = null,
+              feedback: Builder(builder: (ctx) {
+                debugPrint('🚀 FEEDBACK built! ctx.widget=${ctx.widget.runtimeType}');
+                return SizedBox(
+                  width: widget.feedbackWidth,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Opacity(opacity: 0.92, child: widget.feedbackChild),
+                  ),
+                );
+              }),
+              childWhenDragging: _SizedPlaceholder(visible: false, child: widget.child),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 120),
+                opacity: isMe ? 0.0 : 1.0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                      child: isTarget
+                          ? _SizedPlaceholder(visible: true, child: widget.child)
+                          : const SizedBox.shrink(),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: isTarget
+                          ? BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.terracotta.withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
+                            )
+                          : const BoxDecoration(),
+                      child: widget.child,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SizedPlaceholder extends StatefulWidget {
+  final Widget child;
+  final bool visible;
+  const _SizedPlaceholder({required this.child, required this.visible});
+
+  @override
+  State<_SizedPlaceholder> createState() => _SizedPlaceholderState();
+}
+
+class _SizedPlaceholderState extends State<_SizedPlaceholder> {
+  final _key = GlobalKey();
+  Size? _size;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+  }
+
+  void _measure() {
+    final ctx = _key.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box != null && mounted && _size != box.size) {
+      setState(() => _size = box.size);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Opacity(opacity: 0, child: KeyedSubtree(key: _key, child: widget.child)),
+        if (_size != null)
+          SizedBox(
+            width: _size!.width,
+            height: _size!.height,
+            child: widget.visible
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.terracotta.withValues(alpha: 0.35),
+                          width: 1.5,
+                        ),
+                        color: AppColors.terracotta.withValues(alpha: 0.05),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+      ],
     );
   }
 }
@@ -213,13 +597,16 @@ class _EventCard extends StatefulWidget {
   final int view;
   final VoidCallback onTap;
   final ValueChanged<int> onCheckTask;
+  final bool? isDarkOverride;
 
   const _EventCard({
+    super.key,
     required this.event,
     required this.showTag,
     required this.view,
     required this.onTap,
     required this.onCheckTask,
+    this.isDarkOverride,
   });
 
   @override
@@ -238,7 +625,7 @@ class _EventCardState extends State<_EventCard> {
     final onCheckTask = widget.onCheckTask;
 
     final state = context.watch<AppState>();
-    final isDark = state.darkMode;
+    final isDark = widget.isDarkOverride ?? state.darkMode;
     final cardBg = isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF);
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
@@ -335,17 +722,25 @@ class _EventCardState extends State<_EventCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.notifications_outlined, size: 11, color: AppColors.terracotta),
                         const SizedBox(width: 4),
-                        Text(
-                          formatDateTime(event.reminderDate),
-                          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
+                        Flexible(
+                          child: Text(
+                            formatDateTime(event.reminderDate),
+                            style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         if (repeatStr.isNotEmpty) ...[
                           const SizedBox(width: 6),
-                          Text('· $repeatStr', style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta.withValues(alpha: 0.7))),
+                          Flexible(
+                            child: Text(
+                              '· $repeatStr',
+                              style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta.withValues(alpha: 0.7)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -420,6 +815,9 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
   RepeatInterval _repeat = RepeatInterval.none;
   int? _customDays;
   final _customDaysCtrl = TextEditingController();
+  bool _tagMenuOpen = false;
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -436,10 +834,100 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
 
   @override
   void dispose() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     _customDaysCtrl.dispose();
     super.dispose();
+  }
+
+  void _showTagMenu(BuildContext context, AppState state, bool isDark, Color text) {
+    _hideTagMenu();
+    _overlayEntry = OverlayEntry(
+      builder: (_) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _hideTagMenu,
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.transparent)),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(0, 32),
+              targetAnchor: Alignment.topRight,
+              followerAnchor: Alignment.topRight,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 160,
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkBg : AppColors.lightBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+                      width: 0.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                        blurRadius: 12, offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    shrinkWrap: true,
+                    children: ['', ...state.eventFolders].map((tag) {
+                      final sel = _category == tag;
+                      final tColor = state.folderColor(tag);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() => _category = tag);
+                          _hideTagMenu();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          color: sel ? tColor.withValues(alpha: 0.1) : Colors.transparent,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 7, height: 7,
+                                decoration: BoxDecoration(color: tColor, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  tag.isEmpty ? '–' : tag,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                                    color: sel ? tColor : text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _tagMenuOpen = true);
+  }
+
+  void _hideTagMenu() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _tagMenuOpen = false);
   }
 
   Future<void> _pickDate() async {
@@ -621,11 +1109,6 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     Navigator.pop(context);
   }
 
-  void _delete() {
-    if (widget.event != null) context.read<AppState>().deleteEvent(widget.event!.id);
-    Navigator.pop(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -637,7 +1120,9 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
-    return Dialog(
+    return GestureDetector(
+      onTap: () { if (_tagMenuOpen) _hideTagMenu(); },
+      child: Dialog(
       backgroundColor: bg,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -645,12 +1130,15 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Шапка ──
+          // ── Шапка: название + dropdown папки ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Stack(
+              alignment: Alignment.centerRight,
               children: [
-                Expanded(
+                // Название
+                Padding(
+                  padding: const EdgeInsets.only(right: 120),
                   child: TextField(
                     controller: _titleCtrl,
                     autofocus: widget.event == null,
@@ -663,46 +1151,59 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                     ),
                   ),
                 ),
-                if (widget.event != null)
-                  IconButton(
-                    icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.7), size: 20),
-                    onPressed: _delete,
-                  ),
-                IconButton(
-                  icon: Icon(Icons.close_rounded, color: textSec, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          // ── Категория ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: ['', ...context.read<AppState>().eventFolders].map((cat) {
-                  final sel = _category == cat;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _category = cat),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: sel ? state.folderColor(cat) : fieldBg,
-                          borderRadius: BorderRadius.circular(20),
+                // Кнопки: dropdown папки + закрыть
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CompositedTransformTarget(
+                      link: _layerLink,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_tagMenuOpen) {
+                            _hideTagMenu();
+                          } else {
+                            _showTagMenu(context, state, isDark, text);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: state.folderColor(_category).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _category.isEmpty ? '–' : _category,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11, fontWeight: FontWeight.w700,
+                                  color: state.folderColor(_category),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                _tagMenuOpen
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                size: 14, color: state.folderColor(_category),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Text(cat.isEmpty ? '–' : cat, style: GoogleFonts.dmSans(
-                          fontSize: 11, fontWeight: FontWeight.w600,
-                          color: sel ? Colors.white : textSec,
-                        )),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        if (_tagMenuOpen) _hideTagMenu();
+                        Navigator.pop(context);
+                      },
+                      child: Icon(Icons.close_rounded, color: textSec, size: 20),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -839,7 +1340,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

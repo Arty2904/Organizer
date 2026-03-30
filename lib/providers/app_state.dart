@@ -35,12 +35,19 @@ class AppState extends ChangeNotifier {
   String get todosSort => _todosSort;
   set todosSort(String v) { _todosSort = v; _saveViews(); notifyListeners(); }
 
+  String _eventsSort = 'date';
+  String get eventsSort => _eventsSort;
+  set eventsSort(String v) { _eventsSort = v; _saveViews(); notifyListeners(); }
+
   // Manual order stored as list of ids
   List<String> _notesOrder = [];
   List<String> get notesOrder => _notesOrder;
 
   List<String> _todosOrder = [];
   List<String> get todosOrder => _todosOrder;
+
+  List<String> _eventsOrder = [];
+  List<String> get eventsOrder => _eventsOrder;
 
   void reorderNote(int oldIndex, int newIndex) {
     if (_notesOrder.isEmpty) _notesOrder = notes.map((n) => n.id).toList();
@@ -79,6 +86,26 @@ class AppState extends ChangeNotifier {
     _todosOrder.removeAt(fromIdx);
     final toIdx = _todosOrder.indexOf(toId);
     _todosOrder.insert(toIdx, fromId);
+    _save(); notifyListeners();
+  }
+
+  void reorderEvent(int oldIndex, int newIndex) {
+    if (_eventsOrder.isEmpty) _eventsOrder = events.map((e) => e.id).toList();
+    if (newIndex > oldIndex) newIndex -= 1;
+    final id = _eventsOrder.removeAt(oldIndex);
+    _eventsOrder.insert(newIndex, id);
+    _save(); notifyListeners();
+  }
+
+  void reorderEventById(String fromId, String toId) {
+    if (_eventsOrder.isEmpty) _eventsOrder = events.map((e) => e.id).toList();
+    for (final id in [fromId, toId]) {
+      if (!_eventsOrder.contains(id)) _eventsOrder.add(id);
+    }
+    final fromIdx = _eventsOrder.indexOf(fromId);
+    _eventsOrder.removeAt(fromIdx);
+    final toIdx = _eventsOrder.indexOf(toId);
+    _eventsOrder.insert(toIdx, fromId);
     _save(); notifyListeners();
   }
 
@@ -158,7 +185,11 @@ class AppState extends ChangeNotifier {
 
   void toggleFolderVisibility(int tab, String folder) {
     final h = hiddenFor(tab);
-    if (h.contains(folder)) h.remove(folder); else h.add(folder);
+    if (h.contains(folder)) {
+      h.remove(folder);
+    } else {
+      h.add(folder);
+    }
     _saveFolders(); notifyListeners();
   }
 
@@ -176,8 +207,9 @@ class AppState extends ChangeNotifier {
     // Save back: special items go to order, folders stay in folders
     order.clear();
     for (final f in full) {
-      if (f == 'Все' || f == '') order.add(f);
-      else if (folders.contains(f)) order.add(f);
+      if (f == 'Все' || f == '') {
+        order.add(f);
+      } else if (folders.contains(f)) order.add(f);
     }
     _saveFolders(); notifyListeners();
   }
@@ -270,10 +302,13 @@ class AppState extends ChangeNotifier {
     _eventsView = prefs.getInt('eventsView') ?? 1;
     _notesSort = prefs.getString('notesSort') ?? 'date';
     _todosSort = prefs.getString('todosSort') ?? 'date';
+    _eventsSort = prefs.getString('eventsSort') ?? 'date';
     final orderJson = prefs.getString('notesOrder');
     if (orderJson != null) _notesOrder = List<String>.from(jsonDecode(orderJson));
     final todosOrderJson = prefs.getString('todosOrder');
     if (todosOrderJson != null) _todosOrder = List<String>.from(jsonDecode(todosOrderJson));
+    final eventsOrderJson = prefs.getString('eventsOrder');
+    if (eventsOrderJson != null) _eventsOrder = List<String>.from(jsonDecode(eventsOrderJson));
     final nfJson = prefs.getString('noteFolders');
     if (nfJson != null) noteFolders = List<String>.from(jsonDecode(nfJson));
     final tfJson = prefs.getString('todoFolders');
@@ -386,7 +421,11 @@ class AppState extends ChangeNotifier {
 
   void toggleHidden(int tab, String key) {
     final set = tab == 0 ? eventHidden : (tab == 1 ? noteHidden : todoHidden);
-    if (set.contains(key)) set.remove(key); else set.add(key);
+    if (set.contains(key)) {
+      set.remove(key);
+    } else {
+      set.add(key);
+    }
     refresh();
     _save();
   }
@@ -407,8 +446,10 @@ class AppState extends ChangeNotifier {
     await prefs.setInt('eventsView', _eventsView);
     await prefs.setString('notesSort', _notesSort);
     await prefs.setString('todosSort', _todosSort);
+    await prefs.setString('eventsSort', _eventsSort);
     await prefs.setString('notesOrder', jsonEncode(_notesOrder));
     await prefs.setString('todosOrder', jsonEncode(_todosOrder));
+    await prefs.setString('eventsOrder', jsonEncode(_eventsOrder));
   }
 
   void refresh() {
@@ -516,11 +557,31 @@ class AppState extends ChangeNotifier {
   }
 
   List<AppEvent> filteredEvents(String query) {
-    return events.where((e) {
+    var result = events.where((e) {
       final matchCat = eventsFilter == 'Все' || (eventsFilter == '' ? e.category.isEmpty : e.category == eventsFilter);
       final matchQ = query.isEmpty || e.title.toLowerCase().contains(query.toLowerCase()) || e.body.toLowerCase().contains(query.toLowerCase());
       return matchCat && matchQ;
     }).toList();
+    if (_eventsSort == 'manual' && _eventsOrder.isNotEmpty) {
+      result.sort((a, b) {
+        final ai = _eventsOrder.indexOf(a.id);
+        final bi = _eventsOrder.indexOf(b.id);
+        if (ai == -1 && bi == -1) return 0;
+        if (ai == -1) return 1;
+        if (bi == -1) return -1;
+        return ai.compareTo(bi);
+      });
+    } else {
+      result.sort((a, b) {
+        final ad = a.reminderDate;
+        final bd = b.reminderDate;
+        if (ad == null && bd == null) return b.createdAt.compareTo(a.createdAt);
+        if (ad == null) return 1;
+        if (bd == null) return -1;
+        return ad.compareTo(bd);
+      });
+    }
+    return result;
   }
 
   List<AppEvent> eventsInMonth(DateTime month) {

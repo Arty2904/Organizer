@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
 import '../models/models.dart';
@@ -31,7 +30,9 @@ class _TodosScreenState extends State<TodosScreen> {
       if (_allExpanded) {
         _expandedIds.clear();
       } else {
-        for (final t in todos) _expandedIds.add(t.id);
+        for (final t in todos) {
+          _expandedIds.add(t.id);
+        }
       }
     });
   }
@@ -180,8 +181,11 @@ class _TodosScreenState extends State<TodosScreen> {
                   view: 3,
                   expanded: _expandedIds.contains(todos[i].id),
                   onToggleExpand: () => setState(() {
-                    if (_expandedIds.contains(todos[i].id)) _expandedIds.remove(todos[i].id);
-                    else _expandedIds.add(todos[i].id);
+                    if (_expandedIds.contains(todos[i].id)) {
+                      _expandedIds.remove(todos[i].id);
+                    } else {
+                      _expandedIds.add(todos[i].id);
+                    }
                   }),
                   onTap: () => _openEditor(context, todos[i]),
                   onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
@@ -196,8 +200,11 @@ class _TodosScreenState extends State<TodosScreen> {
                   view: 3,
                   expanded: _expandedIds.contains(todos[i].id),
                   onToggleExpand: () => setState(() {
-                    if (_expandedIds.contains(todos[i].id)) _expandedIds.remove(todos[i].id);
-                    else _expandedIds.add(todos[i].id);
+                    if (_expandedIds.contains(todos[i].id)) {
+                      _expandedIds.remove(todos[i].id);
+                    } else {
+                      _expandedIds.add(todos[i].id);
+                    }
                   }),
                   onTap: () => _openEditor(context, todos[i]),
                   onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
@@ -369,7 +376,7 @@ class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
                   child: Opacity(opacity: 0.88, child: widget.child),
                 ),
               ),
-              childWhenDragging: _SizedPlaceholder(child: widget.child, visible: false),
+              childWhenDragging: _SizedPlaceholder(visible: false, child: widget.child),
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 120),
                 opacity: isMe ? 0.0 : 1.0,
@@ -380,7 +387,7 @@ class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOut,
                       child: isTarget
-                          ? _SizedPlaceholder(child: widget.child, visible: true)
+                          ? _SizedPlaceholder(visible: true, child: widget.child)
                           : const SizedBox.shrink(),
                     ),
                     AnimatedContainer(
@@ -887,7 +894,7 @@ class _TodoCardState extends State<_TodoCard> {
           ],
         ),
       ),
-    ));
+    );
   }
 }
 
@@ -929,6 +936,8 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
   late List<bool> _itemDone;
   final List<FocusNode> _focusNodes = [];
   bool _tagMenuOpen = false;
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -941,11 +950,105 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     _focusNodes.addAll(List.generate(_itemCtrls.length, (_) => FocusNode()));
   }
 
+  void _showTagMenu(BuildContext context, AppState state, bool isDark, Color text) {
+    _hideTagMenu();
+    _overlayEntry = OverlayEntry(
+      builder: (_) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _hideTagMenu,
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.transparent)),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(0, 32),
+              targetAnchor: Alignment.topRight,
+              followerAnchor: Alignment.topRight,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 160,
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkBg : AppColors.lightBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+                      width: 0.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                        blurRadius: 12, offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    shrinkWrap: true,
+                    children: ['', ...state.todoFolders].map((tag) {
+                      final sel = _category == tag;
+                      final tColor = state.folderColor(tag);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() => _category = tag);
+                          _hideTagMenu();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          color: sel ? tColor.withValues(alpha: 0.1) : Colors.transparent,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 7, height: 7,
+                                decoration: BoxDecoration(color: tColor, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  tag.isEmpty ? '–' : tag,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                                    color: sel ? tColor : text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _tagMenuOpen = true);
+  }
+
+  void _hideTagMenu() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _tagMenuOpen = false);
+  }
+
   @override
   void dispose() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
     _nameCtrl.dispose();
-    for (var c in _itemCtrls) c.dispose();
-    for (var f in _focusNodes) f.dispose();
+    for (var c in _itemCtrls) {
+      c.dispose();
+    }
+    for (var f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -997,7 +1100,7 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
     return GestureDetector(
-      onTap: () { if (_tagMenuOpen) setState(() => _tagMenuOpen = false); },
+      onTap: () { if (_tagMenuOpen) _hideTagMenu(); },
       child: Dialog(
         backgroundColor: bg,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -1028,97 +1131,43 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                   ),
                 ),
                 // Выпадающий список папки
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () => setState(() => _tagMenuOpen = !_tagMenuOpen),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: state.folderColor(_category).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _category.isEmpty ? '–' : _category,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11, fontWeight: FontWeight.w700,
-                                color: state.folderColor(_category),
-                              ),
+                CompositedTransformTarget(
+                  link: _layerLink,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_tagMenuOpen) {
+                        _hideTagMenu();
+                      } else {
+                        _showTagMenu(context, state, isDark, text);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: state.folderColor(_category).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _category.isEmpty ? '–' : _category,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11, fontWeight: FontWeight.w700,
+                              color: state.folderColor(_category),
                             ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              _tagMenuOpen
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.keyboard_arrow_down_rounded,
-                              size: 14, color: state.folderColor(_category),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            _tagMenuOpen
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            size: 14, color: state.folderColor(_category),
+                          ),
+                        ],
                       ),
                     ),
-                    if (_tagMenuOpen)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        width: 150,
-                        constraints: const BoxConstraints(maxHeight: 260),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkBg : AppColors.lightBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
-                            width: 0.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
-                              blurRadius: 12, offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          shrinkWrap: true,
-                          children: ['', ...context.read<AppState>().todoFolders].map((tag) {
-                            final sel = _category == tag;
-                            final tColor = state.folderColor(tag);
-                            return GestureDetector(
-                              onTap: () => setState(() {
-                                _category = tag;
-                                _tagMenuOpen = false;
-                              }),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                                color: sel ? tColor.withValues(alpha: 0.1) : Colors.transparent,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 7, height: 7,
-                                      decoration: BoxDecoration(color: tColor, shape: BoxShape.circle),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        tag.isEmpty ? '–' : tag,
-                                        style: GoogleFonts.dmSans(
-                                          fontSize: 12,
-                                          fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
-                                          color: sel ? tColor : text,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ],
             ),

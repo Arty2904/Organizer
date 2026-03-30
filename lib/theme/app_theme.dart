@@ -168,7 +168,6 @@ ThemeData buildTheme(bool dark) {
   final accent  = dark ? AppColors.terracotta   : AppColors.terracottaLight;
 
   return base.copyWith(
-    useMaterial3: true,
     scaffoldBackgroundColor: dark ? AppColors.darkBg2 : AppColors.lightBg2,
     colorScheme: (dark ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
       primary: accent,

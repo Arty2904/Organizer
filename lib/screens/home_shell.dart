@@ -97,7 +97,7 @@ class _HomeShellState extends State<HomeShell> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (tab == 2 || tab == 3)
+                    if (tab == 1 || tab == 2 || tab == 3)
                       _FilterButton(isDark: isDark, text: text, textSec: textSec, surface: surface, tab: tab),
                     const SizedBox(width: 4),
                     ViewSwitcher(current: currentView(), onChanged: setView),
@@ -267,7 +267,7 @@ class _FilterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final cardBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
-    final currentSort = tab == 3 ? state.todosSort : state.notesSort;
+    final currentSort = tab == 3 ? state.todosSort : (tab == 1 ? state.eventsSort : state.notesSort);
     final isManual = currentSort == 'manual';
 
     return GestureDetector(
@@ -296,6 +296,8 @@ class _FilterButton extends StatelessWidget {
         if (selected != null) {
           if (tab == 3) {
             state.todosSort = selected;
+          } else if (tab == 1) {
+            state.eventsSort = selected;
           } else {
             state.notesSort = selected;
           }

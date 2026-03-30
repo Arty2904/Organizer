@@ -5,12 +5,14 @@ class Note {
   String body;
   String category;
   DateTime createdAt;
+  int colorIndex; // 0 = default, 1-21 = custom color
 
   Note({
     required this.id,
     required this.title,
     this.body = '',
     this.category = '',
+    this.colorIndex = 0,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -19,6 +21,7 @@ class Note {
     'title': title,
     'body': body,
     'category': category,
+    'colorIndex': colorIndex,
     'createdAt': createdAt.toIso8601String(),
   };
 
@@ -27,6 +30,7 @@ class Note {
     title: j['title'],
     body: j['body'] ?? '',
     category: j['category'] ?? '',
+    colorIndex: j['colorIndex'] ?? 0,
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
   );
 }
