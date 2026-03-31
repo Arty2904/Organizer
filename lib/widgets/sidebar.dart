@@ -10,11 +10,11 @@ import '../screens/todos_screen.dart';
 
 // ─── Font helpers ─────────────────────────────────────────
 const kFontOptions = [
-  ('fraunces',  'Fraunces',         'Выразительный serif'),
-  ('playfair',  'Playfair Display', 'Как NYT — газетный'),
-  ('lora',      'Lora',             'Мягкий книжный serif'),
-  ('dm_sans',   'DM Sans',          'Чистый гротеск'),
-  ('nunito',    'Nunito',           'Округлый дружелюбный'),
+  ('fraunces',  'Fraunces'),
+  ('playfair',  'Playfair Display'),
+  ('lora',      'Lora'),
+  ('dm_sans',   'DM Sans'),
+  ('nunito',    'Nunito'),
 ];
 
 TextStyle appTitleStyle(String font, {double size = 15, FontWeight weight = FontWeight.w600, Color? color}) {
@@ -408,7 +408,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = state.darkMode;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
     _fontOverlay = OverlayEntry(builder: (_) => GestureDetector(
@@ -430,27 +429,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: divider, width: 0.5),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
               ),
-              child: Column(mainAxisSize: MainAxisSize.min,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(mainAxisSize: MainAxisSize.min,
                 children: kFontOptions.map((f) {
                   final sel = state.appFont == f.$1;
                   return GestureDetector(
                     onTap: () { state.setAppFont(f.$1); setState(() {}); _closeOverlays(); },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                       decoration: BoxDecoration(
                         color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(f.$2, style: appTitleStyle(f.$1, size: 15, color: sel ? AppColors.terracotta : text)),
-                          Text(f.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
-                        ])),
+                        Expanded(child: Text(f.$2, style: appTitleStyle(f.$1, size: 14, color: sel ? AppColors.terracotta : text))),
                         if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
                       ]),
                     ),
                   );
                 }).toList(),
+              ),
               ),
             ),
           ),
@@ -588,18 +587,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
 
             // ── Шрифт ──
-            _Section(title: 'ШРИФТ ЗАГОЛОВКОВ', child: CompositedTransformTarget(
+            _Section(title: 'ШРИФТ', child: CompositedTransformTarget(
               link: _fontLink,
               child: GestureDetector(
                 onTap: () => _showFontDropdown(context, state),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                   decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(currentFont.$2, style: appTitleStyle(state.appFont, size: 15, color: text)),
-                      Text(currentFont.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
-                    ])),
+                    Expanded(child: Text(currentFont.$2, style: appTitleStyle(state.appFont, size: 15, color: text))),
                     Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
                   ]),
                 ),
