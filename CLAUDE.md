@@ -44,8 +44,8 @@ lib/
 All font usage must go through `font_helper.dart`:
 - `appTitleStyle(state.appFont, size, weight, color)` — UI elements, titles, navigation labels
 - `contentStyle(state.contentFont, size, weight, color, height)` — user-written content (note bodies, todo items, event descriptions)
-- `kFontOptions` — list of `(key, displayName, description)` for UI font picker
-- `kContentFontOptions` — list for content font picker
+- `kFontOptions` — list of `(key, displayName, description)`, shared by both pickers
+- `kContentFontOptions` — alias for `kFontOptions` (same set of fonts)
 - **Never hardcode** `GoogleFonts.dmSans()` for titles or content — use the helpers above
 - `GoogleFonts.dmSans()` is acceptable for metadata, dates, tags, buttons, and UI chrome
 

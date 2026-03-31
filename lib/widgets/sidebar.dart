@@ -362,6 +362,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameCtrl;
+  late String _pendingAppFont;
+  late String _pendingContentFont;
   OverlayEntry? _fontOverlay;
   OverlayEntry? _contentFontOverlay;
   OverlayEntry? _themeOverlay;
@@ -372,8 +374,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: context.read<AppState>().userName);
+    final state = context.read<AppState>();
+    _nameCtrl = TextEditingController(text: state.userName);
     _nameCtrl.addListener(() => setState(() {}));
+    _pendingAppFont = state.appFont;
+    _pendingContentFont = state.contentFont;
   }
 
   @override
@@ -418,9 +423,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Column(mainAxisSize: MainAxisSize.min,
                 children: kFontOptions.map((f) {
-                  final sel = state.appFont == f.$1;
+                  final sel = _pendingAppFont == f.$1;
                   return GestureDetector(
-                    onTap: () { state.setAppFont(f.$1); setState(() {}); _closeOverlays(); },
+                    onTap: () { setState(() => _pendingAppFont = f.$1); _closeOverlays(); },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
@@ -476,9 +481,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Column(mainAxisSize: MainAxisSize.min,
                 children: kContentFontOptions.map((f) {
-                  final sel = state.contentFont == f.$1;
+                  final sel = _pendingContentFont == f.$1;
                   return GestureDetector(
-                    onTap: () { state.setContentFont(f.$1); setState(() {}); _closeOverlays(); },
+                    onTap: () { setState(() => _pendingContentFont = f.$1); _closeOverlays(); },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
@@ -582,9 +587,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
-    final currentFont = kFontOptions.firstWhere((f) => f.$1 == state.appFont, orElse: () => kFontOptions.first);
-    final currentContentFont = kContentFontOptions.firstWhere((f) => f.$1 == state.contentFont, orElse: () => kContentFontOptions.first);
-    final hasChanges = _nameCtrl.text.trim() != state.userName;
+    final currentFont = kFontOptions.firstWhere((f) => f.$1 == _pendingAppFont, orElse: () => kFontOptions.first);
+    final currentContentFont = kContentFontOptions.firstWhere((f) => f.$1 == _pendingContentFont, orElse: () => kContentFontOptions.first);
+    final hasChanges = _nameCtrl.text.trim() != state.userName
+        || _pendingAppFont != state.appFont
+        || _pendingContentFont != state.contentFont;
 
     return GestureDetector(
       onTap: _closeOverlays,
@@ -638,7 +645,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
                         child: Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(currentFont.$2, style: appTitleStyle(state.appFont, size: 15, color: text)),
+                            Text(currentFont.$2, style: appTitleStyle(_pendingAppFont, size: 15, color: text)),
                             Text(currentFont.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
                           ])),
                           Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
@@ -659,7 +666,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
                         child: Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(currentContentFont.$2, style: contentStyle(state.contentFont, size: 14, color: text)),
+                            Text(currentContentFont.$2, style: contentStyle(_pendingContentFont, size: 14, color: text)),
                             Text(currentContentFont.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
                           ])),
                           Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
@@ -705,6 +712,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: hasChanges
                         ? () {
                             state.setUserName(_nameCtrl.text.trim());
+                            state.setAppFont(_pendingAppFont);
+                            state.setContentFont(_pendingContentFont);
                             FocusScope.of(context).unfocus();
                           }
                         : null,
