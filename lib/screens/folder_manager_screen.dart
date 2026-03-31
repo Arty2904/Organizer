@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/font_helper.dart';
 
 const _kPaletteColors = [
   Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
@@ -62,8 +63,7 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg, surfaceTintColor: Colors.transparent,
-        title: Text('Папки', style: GoogleFonts.fraunces(
-          fontSize: 15, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+        title: Text('Папки', style: appTitleStyle(context.watch<AppState>().appFont, size: 15, weight: FontWeight.w600, color: text)),
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: acc, unselectedLabelColor: sec,
@@ -161,8 +161,7 @@ class _FolderTabState extends State<_FolderTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Цвет папки', style: GoogleFonts.fraunces(
-                fontSize: 16, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+              Text('Цвет папки', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 10, runSpacing: 10,
@@ -204,8 +203,7 @@ class _FolderTabState extends State<_FolderTab> {
       context: ctx,
       builder: (_) => AlertDialog(
         backgroundColor: widget.bg,
-        title: Text('Новая папка', style: GoogleFonts.fraunces(
-          fontSize: 17, color: widget.text, fontWeight: FontWeight.w600, fontStyle: FontStyle.normal,)),
+        title: Text('Новая папка', style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: widget.text)),
         content: TextField(
           controller: ctrl, autofocus: true,
           style: GoogleFonts.dmSans(fontSize: 14, color: widget.text),
@@ -251,8 +249,7 @@ class _FolderTabState extends State<_FolderTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Удалить папку?', style: GoogleFonts.fraunces(
-                fontSize: 17, fontWeight: FontWeight.w600, color: widget.text, fontStyle: FontStyle.normal,)),
+              Text('Удалить папку?', style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: widget.text)),
               const SizedBox(height: 8),
               Text('Папка «$name» будет удалена. Связанные элементы станут без тега.',
                   style: GoogleFonts.dmSans(fontSize: 13, color: widget.sec)),

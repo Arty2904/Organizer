@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import '../theme/font_helper.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 
@@ -73,9 +74,7 @@ class _EventsScreenState extends State<EventsScreen> {
       children: [
         Icon(Icons.event_outlined, size: 48, color: AppColors.terracotta.withValues(alpha: 0.3)),
         const SizedBox(height: 12),
-        Text('Нет событий', style: GoogleFonts.fraunces(
-          fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-         fontStyle: FontStyle.normal,)),
+        Text('Нет событий', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
       ],
     ),
   );
@@ -108,10 +107,9 @@ class _EventsScreenState extends State<EventsScreen> {
         ),
       );
     }
-    return ListView.separated(
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: events.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => SelectableCardWrapper(
         key: ValueKey(events[i].id),
         itemId: events[i].id,
@@ -330,9 +328,7 @@ class _EventGridCard extends StatelessWidget {
             if (event.title.isNotEmpty)
               Text(
                 event.title,
-                style: GoogleFonts.fraunces(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-                 fontStyle: FontStyle.normal,),
+                style: appTitleStyle(context.watch<AppState>().appFont, size: 13, weight: FontWeight.w600, color: textColor),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -582,7 +578,7 @@ class _SwipableCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+                    Text('Удалить?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
                     const SizedBox(height: 8),
                     Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
                     const SizedBox(height: 20),
@@ -689,9 +685,7 @@ class _EventCardState extends State<_EventCard> {
             children: [
               Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
               const SizedBox(width: 10),
-              Expanded(child: Text(event.title, style: GoogleFonts.fraunces(
-                fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-               fontStyle: FontStyle.normal,), overflow: TextOverflow.ellipsis)),
+              Expanded(child: Text(event.title, style: appTitleStyle(state.appFont, size: 13, weight: FontWeight.w600, color: textColor), overflow: TextOverflow.ellipsis)),
               if (event.reminderDate != null)
                 Text(formatDate(event.reminderDate!), style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
             ],
@@ -723,9 +717,7 @@ class _EventCardState extends State<_EventCard> {
                     children: [
                       Container(width: 6, height: 6, decoration: BoxDecoration(color: catColor, shape: BoxShape.circle)),
                       const SizedBox(width: 7),
-                      Expanded(child: Text(event.title, style: GoogleFonts.fraunces(
-                        fontSize: view == 2 ? 13 : 15, fontWeight: FontWeight.w600, color: textColor,
-                       fontStyle: FontStyle.normal,))),
+                      Expanded(child: Text(event.title, style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: textColor))),
                     ],
                   ),
                 ),
@@ -733,16 +725,14 @@ class _EventCardState extends State<_EventCard> {
                   const SizedBox(height: 5),
                   Padding(
                     padding: const EdgeInsets.only(right: 60),
-                    child: Text(event.body, style: GoogleFonts.dmSans(
-                      fontSize: view == 2 ? 11 : 12, color: textSec, height: 1.4,
-                    ), maxLines: view == 1 ? (_bodyExpanded ? 10 : 3) : 2, overflow: TextOverflow.ellipsis),
+                    child: Text(event.body, style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: textSec, height: 1.4), maxLines: view == 1 ? (_bodyExpanded ? 10 : 3) : 2, overflow: TextOverflow.ellipsis),
                   ),
                   if (view == 1)
                     LayoutBuilder(builder: (ctx, constraints) {
                       final tp = TextPainter(
                         text: TextSpan(
                           text: event.body,
-                          style: GoogleFonts.dmSans(fontSize: 12, height: 1.4),
+                          style: contentStyle(state.contentFont, size: 12, height: 1.4),
                         ),
                         maxLines: 3,
                         textDirection: TextDirection.ltr,
@@ -1022,9 +1012,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Text('Повторять', style: GoogleFonts.fraunces(
-                  fontSize: 16, fontWeight: FontWeight.w600, color: text,
-                 fontStyle: FontStyle.normal,)),
+                child: Text('Повторять', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
               ),
               Divider(color: divider, height: 1),
               ...labels.entries.map((e) {
@@ -1074,9 +1062,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Через сколько дней?', style: GoogleFonts.fraunces(
-                fontSize: 16, fontWeight: FontWeight.w600, color: text,
-               fontStyle: FontStyle.normal,)),
+              Text('Через сколько дней?', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 16),
               TextField(
                 controller: _customDaysCtrl,
@@ -1190,11 +1176,11 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                   child: TextField(
                     controller: _titleCtrl,
                     autofocus: widget.event == null,
-                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,),
+                    style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
                     decoration: InputDecoration(
                       filled: false, border: InputBorder.none,
                       hintText: 'Название события',
-                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint, fontStyle: FontStyle.normal,),
+                      hintStyle: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: textHint),
                       contentPadding: EdgeInsets.zero, isDense: true,
                     ),
                   ),
@@ -1262,13 +1248,13 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: TextField(
               controller: _bodyCtrl,
-              style: GoogleFonts.dmSans(fontSize: 13, color: text),
+              style: contentStyle(state.contentFont, size: 13, color: text, height: 1.4),
               maxLines: 3,
               minLines: 1,
               decoration: InputDecoration(
                 filled: false, border: InputBorder.none,
                 hintText: 'Описание...',
-                hintStyle: GoogleFonts.dmSans(fontSize: 13, color: textHint),
+                hintStyle: contentStyle(state.contentFont, size: 13, color: textHint, height: 1.4),
                 contentPadding: EdgeInsets.zero, isDense: true,
               ),
             ),
@@ -1520,11 +1506,7 @@ class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
                 return Center(
                   child: Text(
                     label(i),
-                    style: GoogleFonts.fraunces(
-                      fontSize: selected ? 20 : 15,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: selected ? text : textSec,
-                     fontStyle: FontStyle.normal,),
+                    style: appTitleStyle(context.watch<AppState>().appFont, size: 15, weight: FontWeight.w600, color: selected ? text : textSec),
                   ),
                 );
               },
@@ -1591,9 +1573,7 @@ class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Заголовок
-            Text('Дата и время', style: GoogleFonts.fraunces(
-              fontSize: 17, fontWeight: FontWeight.w600, color: text,
-             fontStyle: FontStyle.normal,)),
+            Text('Дата и время', style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: text)),
             const SizedBox(height: 20),
 
             // ── Барабаны даты ──
@@ -1650,8 +1630,7 @@ class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(' : ', style: GoogleFonts.fraunces(
-                    fontSize: 22, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+                  child: Text(' : ', style: appTitleStyle(context.watch<AppState>().appFont, size: 22, weight: FontWeight.w600, color: text)),
                 ),
                 _drum(
                   ctrl: _minuteCtrl,

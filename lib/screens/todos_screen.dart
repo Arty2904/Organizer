@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import '../theme/font_helper.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 
@@ -93,9 +94,7 @@ class _TodosScreenState extends State<TodosScreen> {
       children: [
         Icon(Icons.checklist_rounded, size: 48, color: AppColors.terracotta.withValues(alpha: 0.3)),
         const SizedBox(height: 12),
-        Text('Нет дел', style: GoogleFonts.fraunces(
-          fontSize: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-         fontStyle: FontStyle.normal,)),
+        Text('Нет дел', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
       ],
     ),
   );
@@ -125,10 +124,9 @@ class _TodosScreenState extends State<TodosScreen> {
         ),
       );
     }
-    return ListView.separated(
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: todos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => SelectableCardWrapper(
         key: ValueKey(todos[i].id),
         itemId: todos[i].id,
@@ -532,7 +530,7 @@ class _SwipableCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Удалить?', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+                    Text('Удалить?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
                     const SizedBox(height: 8),
                     Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
                     const SizedBox(height: 20),
@@ -662,9 +660,7 @@ class _TodoCardState extends State<_TodoCard> {
                     onTap: onTap,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 11),
-                      child: Text(group.name, style: GoogleFonts.fraunces(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: textColor,
-                       fontStyle: FontStyle.normal,), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      child: Text(group.name, style: appTitleStyle(state.appFont, size: 13, weight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ),
@@ -733,12 +729,7 @@ class _TodoCardState extends State<_TodoCard> {
                             Expanded(
                               child: Text(
                                 item.text,
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 12,
-                                  color: item.done ? textSec : textColor,
-                                  decoration: item.done ? TextDecoration.lineThrough : null,
-                                  decorationColor: textSec,
-                                ),
+                                style: contentStyle(state.contentFont, size: 12, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
                               ),
                             ),
                           ],
@@ -801,12 +792,7 @@ class _TodoCardState extends State<_TodoCard> {
               Expanded(
                 child: Text(
                   item.text,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: item.done ? textSec : textColor,
-                    decoration: item.done ? TextDecoration.lineThrough : null,
-                    decorationColor: textSec,
-                  ),
+                  style: contentStyle(state.contentFont, size: 11, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -844,11 +830,7 @@ class _TodoCardState extends State<_TodoCard> {
                         Expanded(
                           child: Text(
                             group.name,
-                            style: GoogleFonts.fraunces(
-                              fontSize: view == 2 ? 13 : 15,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                             fontStyle: FontStyle.normal,),
+                            style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: textColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -891,12 +873,7 @@ class _TodoCardState extends State<_TodoCard> {
                             Expanded(
                               child: Text(
                                 item.text,
-                                style: GoogleFonts.dmSans(
-                                  fontSize: view == 2 ? 11 : 12,
-                                  color: item.done ? textSec : textColor,
-                                  decoration: item.done ? TextDecoration.lineThrough : null,
-                                  decorationColor: textSec,
-                                ),
+                                style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
                                 maxLines: (view == 1 && _itemsExpanded) ? 2 : 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1159,11 +1136,11 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                   child: TextField(
                     controller: _nameCtrl,
                     autofocus: widget.group == null,
-                    style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,),
+                    style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
                     decoration: InputDecoration(
                       filled: false, border: InputBorder.none,
                       hintText: 'Название списка',
-                      hintStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: textHint, fontStyle: FontStyle.normal,),
+                      hintStyle: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: textHint),
                       contentPadding: EdgeInsets.zero, isDense: true,
                     ),
                   ),
@@ -1246,11 +1223,11 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                       child: TextField(
                         controller: _itemCtrls[i],
                         focusNode: _focusNodes[i],
-                        style: GoogleFonts.dmSans(fontSize: 14, color: text),
+                        style: contentStyle(state.contentFont, size: 14, color: text, height: 1.6),
                         decoration: InputDecoration(
                           filled: false, border: InputBorder.none,
                           hintText: 'Задача...',
-                          hintStyle: GoogleFonts.dmSans(fontSize: 14, color: textHint),
+                          hintStyle: contentStyle(state.contentFont, size: 14, color: textHint, height: 1.6),
                         ),
                         onSubmitted: (_) => _addRow(),
                       ),

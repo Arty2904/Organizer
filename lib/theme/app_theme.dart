@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'font_helper.dart';
 
 class AppColors {
   // ── Акценты ───────────────────────────────────────────────
@@ -158,7 +159,7 @@ class AppColors {
   }
 }
 
-ThemeData buildTheme(bool dark) {
+ThemeData buildTheme(bool dark, {String font = 'fraunces'}) {
   final base = dark ? ThemeData.dark() : ThemeData.light();
   final bg      = dark ? AppColors.darkBg      : AppColors.lightBg;
   final surface = dark ? AppColors.darkSurface  : AppColors.lightSurface;
@@ -180,20 +181,15 @@ ThemeData buildTheme(bool dark) {
     textTheme: GoogleFonts.dmSansTextTheme(base.textTheme).copyWith(
       bodyMedium: GoogleFonts.dmSans(color: text, fontSize: 13, height: 1.5),
       bodySmall: GoogleFonts.dmSans(color: textSec, fontSize: 11),
-      titleMedium: GoogleFonts.fraunces(color: text, fontSize: 15, fontWeight: FontWeight.w600),
-      titleLarge: GoogleFonts.fraunces(color: text, fontSize: 22, fontWeight: FontWeight.w600),
-      headlineMedium: GoogleFonts.fraunces(color: text, fontSize: 26, fontWeight: FontWeight.w600),
+      titleMedium: appTitleStyle(font, size: 15, weight: FontWeight.w600, color: text),
+      titleLarge: appTitleStyle(font, size: 22, weight: FontWeight.w600, color: text),
+      headlineMedium: appTitleStyle(font, size: 26, weight: FontWeight.w600, color: text),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: surface,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: GoogleFonts.fraunces(
-        color: text,
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        fontStyle: FontStyle.italic,
-      ),
+      titleTextStyle: appTitleStyle(font, size: 15, weight: FontWeight.w600, color: text, fontStyle: FontStyle.italic),
       iconTheme: IconThemeData(color: text),
     ),
     chipTheme: ChipThemeData(

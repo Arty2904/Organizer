@@ -3,29 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/font_helper.dart';
 import '../screens/folder_manager_screen.dart';
 import '../screens/notes_screen.dart';
 import '../screens/events_screen.dart';
 import '../screens/todos_screen.dart';
-
-// ─── Font helpers ─────────────────────────────────────────
-const kFontOptions = [
-  ('fraunces',  'Fraunces'),
-  ('playfair',  'Playfair Display'),
-  ('lora',      'Lora'),
-  ('dm_sans',   'DM Sans'),
-  ('nunito',    'Nunito'),
-];
-
-TextStyle appTitleStyle(String font, {double size = 15, FontWeight weight = FontWeight.w600, Color? color}) {
-  switch (font) {
-    case 'playfair': return GoogleFonts.playfairDisplay(fontSize: size, fontWeight: weight, color: color, fontStyle: FontStyle.normal);
-    case 'lora':     return GoogleFonts.lora(fontSize: size, fontWeight: weight, color: color, fontStyle: FontStyle.normal);
-    case 'dm_sans':  return GoogleFonts.dmSans(fontSize: size, fontWeight: weight, color: color);
-    case 'nunito':   return GoogleFonts.nunito(fontSize: size, fontWeight: weight, color: color);
-    default:         return GoogleFonts.fraunces(fontSize: size, fontWeight: weight, color: color, fontStyle: FontStyle.normal);
-  }
-}
 
 // ─── Data models ──────────────────────────────────────────
 class _SectionData {
@@ -381,14 +363,17 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameCtrl;
   OverlayEntry? _fontOverlay;
+  OverlayEntry? _contentFontOverlay;
   OverlayEntry? _themeOverlay;
   final LayerLink _fontLink = LayerLink();
+  final LayerLink _contentFontLink = LayerLink();
   final LayerLink _themeLink = LayerLink();
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: context.read<AppState>().userName);
+    _nameCtrl.addListener(() => setState(() {}));
   }
 
   @override
@@ -400,6 +385,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _closeOverlays() {
     _fontOverlay?.remove(); _fontOverlay = null;
+    _contentFontOverlay?.remove(); _contentFontOverlay = null;
     _themeOverlay?.remove(); _themeOverlay = null;
   }
 
@@ -408,6 +394,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = state.darkMode;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
     _fontOverlay = OverlayEntry(builder: (_) => GestureDetector(
@@ -429,27 +416,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: divider, width: 0.5),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(mainAxisSize: MainAxisSize.min,
+              child: Column(mainAxisSize: MainAxisSize.min,
                 children: kFontOptions.map((f) {
                   final sel = state.appFont == f.$1;
                   return GestureDetector(
                     onTap: () { state.setAppFont(f.$1); setState(() {}); _closeOverlays(); },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(children: [
-                        Expanded(child: Text(f.$2, style: appTitleStyle(f.$1, size: 14, color: sel ? AppColors.terracotta : text))),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(f.$2, style: appTitleStyle(f.$1, size: 15, color: sel ? AppColors.terracotta : text)),
+                          Text(f.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
+                        ])),
                         if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
                       ]),
                     ),
                   );
                 }).toList(),
-              ),
               ),
             ),
           ),
@@ -457,6 +444,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
     ));
     Overlay.of(ctx).insert(_fontOverlay!);
+    setState(() {});
+  }
+
+  void _showContentFontDropdown(BuildContext ctx, AppState state) {
+    _closeOverlays();
+    final isDark = state.darkMode;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    _contentFontOverlay = OverlayEntry(builder: (_) => GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _closeOverlays,
+      child: Stack(children: [
+        Positioned.fill(child: Container(color: Colors.transparent)),
+        CompositedTransformFollower(
+          link: _contentFontLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomLeft,
+          followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 4),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: bg, borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: divider, width: 0.5),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min,
+                children: kContentFontOptions.map((f) {
+                  final sel = state.contentFont == f.$1;
+                  return GestureDetector(
+                    onTap: () { state.setContentFont(f.$1); setState(() {}); _closeOverlays(); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(f.$2, style: contentStyle(f.$1, size: 14, color: sel ? AppColors.terracotta : text)),
+                          Text(f.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
+                        ])),
+                        if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
+                      ]),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    ));
+    Overlay.of(ctx).insert(_contentFontOverlay!);
     setState(() {});
   }
 
@@ -538,6 +583,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
     final currentFont = kFontOptions.firstWhere((f) => f.$1 == state.appFont, orElse: () => kFontOptions.first);
+    final currentContentFont = kContentFontOptions.firstWhere((f) => f.$1 == state.contentFont, orElse: () => kContentFontOptions.first);
+    final hasChanges = _nameCtrl.text.trim() != state.userName;
 
     return GestureDetector(
       onTap: _closeOverlays,
@@ -556,73 +603,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
           centerTitle: true,
           bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Divider(color: divider, height: 1)),
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
+        body: Column(
           children: [
-            const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const SizedBox(height: 8),
 
-            // ── Имя ──
-            _Section(title: 'ИМЯ', child: TextField(
-              controller: _nameCtrl,
-              style: GoogleFonts.dmSans(fontSize: 14, color: text),
-              decoration: InputDecoration(
-                filled: true, fillColor: fieldBg,
-                hintText: 'Введите имя...',
-                hintStyle: GoogleFonts.dmSans(fontSize: 14, color: textHint),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                isDense: true,
-                suffixIcon: GestureDetector(
-                  onTap: () { state.setUserName(_nameCtrl.text.trim()); FocusScope.of(context).unfocus(); },
-                  child: Container(
-                    margin: const EdgeInsets.all(6),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(color: AppColors.terracotta, borderRadius: BorderRadius.circular(8)),
-                    child: Center(child: Text('Сохранить', style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white))),
+                  // ── Имя ──
+                  _Section(title: 'ИМЯ', child: TextField(
+                    controller: _nameCtrl,
+                    maxLines: 1,
+                    style: GoogleFonts.dmSans(fontSize: 14, color: text),
+                    decoration: InputDecoration(
+                      filled: true, fillColor: fieldBg,
+                      hintText: 'Введите имя...',
+                      hintStyle: GoogleFonts.dmSans(fontSize: 14, color: textHint),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      isDense: true,
+                    ),
+                  )),
+
+                  const SizedBox(height: 20),
+
+                  // ── Шрифт элементов интерфейса ──
+                  _Section(title: 'ШРИФТ ЭЛЕМЕНТОВ ИНТЕРФЕЙСА', child: CompositedTransformTarget(
+                    link: _fontLink,
+                    child: GestureDetector(
+                      onTap: () => _showFontDropdown(context, state),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(currentFont.$2, style: appTitleStyle(state.appFont, size: 15, color: text)),
+                            Text(currentFont.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
+                          ])),
+                          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
+                        ]),
+                      ),
+                    ),
+                  )),
+
+                  const SizedBox(height: 16),
+
+                  // ── Шрифт пользовательского контента ──
+                  _Section(title: 'ШРИФТ ПОЛЬЗОВАТЕЛЬСКОГО КОНТЕНТА', child: CompositedTransformTarget(
+                    link: _contentFontLink,
+                    child: GestureDetector(
+                      onTap: () => _showContentFontDropdown(context, state),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(currentContentFont.$2, style: contentStyle(state.contentFont, size: 14, color: text)),
+                            Text(currentContentFont.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
+                          ])),
+                          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
+                        ]),
+                      ),
+                    ),
+                  )),
+
+                  const SizedBox(height: 20),
+
+                  // ── Тема ──
+                  _Section(title: 'ТЕМА ОФОРМЛЕНИЯ', child: CompositedTransformTarget(
+                    link: _themeLink,
+                    child: GestureDetector(
+                      onTap: () => _showThemeDropdown(context, state),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, size: 16, color: AppColors.terracotta),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(isDark ? 'Тёмная' : 'Светлая', style: GoogleFonts.dmSans(fontSize: 14, color: text))),
+                          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
+                        ]),
+                      ),
+                    ),
+                  )),
+
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+
+            // ── Кнопка Сохранить ──
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: AnimatedOpacity(
+                  opacity: hasChanges ? 1.0 : 0.35,
+                  duration: const Duration(milliseconds: 200),
+                  child: GestureDetector(
+                    onTap: hasChanges
+                        ? () {
+                            state.setUserName(_nameCtrl.text.trim());
+                            FocusScope.of(context).unfocus();
+                          }
+                        : null,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.terracotta,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('Сохранить', style: GoogleFonts.dmSans(
+                        fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
+                      )),
+                    ),
                   ),
                 ),
               ),
-            )),
-
-            const SizedBox(height: 20),
-
-            // ── Шрифт ──
-            _Section(title: 'ШРИФТ', child: CompositedTransformTarget(
-              link: _fontLink,
-              child: GestureDetector(
-                onTap: () => _showFontDropdown(context, state),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
-                  child: Row(children: [
-                    Expanded(child: Text(currentFont.$2, style: appTitleStyle(state.appFont, size: 15, color: text))),
-                    Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
-                  ]),
-                ),
-              ),
-            )),
-
-            const SizedBox(height: 20),
-
-            // ── Тема ──
-            _Section(title: 'ТЕМА ОФОРМЛЕНИЯ', child: CompositedTransformTarget(
-              link: _themeLink,
-              child: GestureDetector(
-                onTap: () => _showThemeDropdown(context, state),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
-                  child: Row(children: [
-                    Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, size: 16, color: AppColors.terracotta),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(isDark ? 'Тёмная' : 'Светлая', style: GoogleFonts.dmSans(fontSize: 14, color: text))),
-                    Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
-                  ]),
-                ),
-              ),
-            )),
-
-            const SizedBox(height: 32),
+            ),
           ],
         ),
       ),

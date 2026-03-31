@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import '../theme/font_helper.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 
@@ -67,10 +68,7 @@ class _NotesScreenState extends State<NotesScreen> {
         Icon(Icons.note_add_outlined, size: 48,
             color: AppColors.terracotta.withValues(alpha: 0.3)),
         const SizedBox(height: 12),
-        Text('Нет заметок', style: GoogleFonts.fraunces(
-          fontSize: 16,
-          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-         fontStyle: FontStyle.normal,)),
+        Text('Нет заметок', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
       ],
     ),
   );
@@ -96,10 +94,9 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
       );
     }
-    return ListView.separated(
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
       itemCount: notes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => SelectableCardWrapper(
         key: ValueKey(notes[i].id),
         itemId: notes[i].id,
@@ -293,9 +290,7 @@ class _SwipableCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Удалить?', style: GoogleFonts.fraunces(
-                      fontSize: 18, fontWeight: FontWeight.w600, color: text,
-                     fontStyle: FontStyle.normal,)),
+                    Text('Удалить?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
                     const SizedBox(height: 8),
                     Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(
                       fontSize: 13, color: textSec,
@@ -477,8 +472,7 @@ class _NoteCardState extends State<_NoteCard> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(note.title,
-                  style: GoogleFonts.fraunces(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: textColor, fontStyle: FontStyle.normal,),
+                  style: appTitleStyle(state.appFont, size: 13, weight: FontWeight.w600, color: textColor),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -511,10 +505,7 @@ class _NoteCardState extends State<_NoteCard> {
             children: [
               Text(
                 note.title,
-                style: GoogleFonts.fraunces(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: textColor, height: 1.25,
-                 fontStyle: FontStyle.normal,),
+                style: appTitleStyle(state.appFont, size: 13, weight: FontWeight.w600, color: textColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -522,9 +513,7 @@ class _NoteCardState extends State<_NoteCard> {
                 const SizedBox(height: 6),
                 Text(
                   note.body,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11, color: textSec, height: 1.4,
-                  ),
+                  style: contentStyle(state.contentFont, size: 11, color: textSec, height: 1.4),
                   maxLines: 5,
                   overflow: TextOverflow.ellipsis,
                   softWrap: true,
@@ -566,10 +555,7 @@ class _NoteCardState extends State<_NoteCard> {
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(note.title,
-                          style: GoogleFonts.fraunces(
-                            fontSize: 15, fontWeight: FontWeight.w600,
-                            color: textColor, height: 1.25,
-                           fontStyle: FontStyle.normal,),
+                          style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: textColor),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -579,8 +565,7 @@ class _NoteCardState extends State<_NoteCard> {
                   if (note.body.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(note.body,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 12, color: textSec, height: 1.4),
+                      style: contentStyle(state.contentFont, size: 12, color: textSec, height: 1.4),
                       maxLines: _bodyExpanded ? 10 : 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -588,7 +573,7 @@ class _NoteCardState extends State<_NoteCard> {
                       final tp = TextPainter(
                         text: TextSpan(
                           text: note.body,
-                          style: GoogleFonts.dmSans(fontSize: 12, height: 1.4),
+                          style: contentStyle(state.contentFont, size: 12, height: 1.4),
                         ),
                         maxLines: 3,
                         textDirection: TextDirection.ltr,
@@ -677,10 +662,7 @@ class _GridCard extends StatelessWidget {
               width: width - 24, // minus padding
               child: Text(
                 note.title,
-                style: GoogleFonts.fraunces(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: textColor, height: 1.25,
-                 fontStyle: FontStyle.normal,),
+                style: appTitleStyle(context.watch<AppState>().appFont, size: 13, weight: FontWeight.w600, color: textColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -691,9 +673,7 @@ class _GridCard extends StatelessWidget {
                 width: width - 24,
                 child: Text(
                   note.body,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11, color: textSec, height: 1.4,
-                  ),
+                  style: contentStyle(context.watch<AppState>().contentFont, size: 11, color: textSec, height: 1.4),
                   maxLines: 5,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1055,9 +1035,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Цвет заметки', style: GoogleFonts.fraunces(
-                fontSize: 16, fontWeight: FontWeight.w600, color: text,
-               fontStyle: FontStyle.normal,)),
+              Text('Цвет заметки', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 16),
               StatefulBuilder(
                 builder: (ctx2, setDialogState) => _buildColorWrapDialog(isDark, setDialogState),
@@ -1137,9 +1115,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Удалить заметку?', style: GoogleFonts.fraunces(
-                fontSize: 18, fontWeight: FontWeight.w600, color: text,
-               fontStyle: FontStyle.normal,)),
+              Text('Удалить заметку?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 8),
               Text(
                 widget.note?.title.isEmpty ?? true ? 'Без названия' : widget.note!.title,
@@ -1305,11 +1281,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               onPressed: _saveAndPop,
             ),
             title: Text('Заметка',
-              style: GoogleFonts.fraunces(
-                fontSize: 15, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.normal,
-                color: text,
-              ),
+              style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: text),
             ),
             actions: [
               CompositedTransformTarget(
@@ -1336,19 +1308,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         controller: _titleCtrl,
                         onChanged: (_) => setState(() {}),
                         autofocus: widget.note == null,
-                        style: GoogleFonts.fraunces(
-                          fontSize: 24, fontWeight: FontWeight.w600, color: text,
-                         fontStyle: FontStyle.normal,),
+                        style: appTitleStyle(state.appFont, size: 24, weight: FontWeight.w600, color: text),
                         decoration: InputDecoration(
                           filled: false,
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           hintText: 'Заголовок',
-                          hintStyle: GoogleFonts.fraunces(
-                            fontSize: 24, fontWeight: FontWeight.w600,
-                            color: textHint,
-                           fontStyle: FontStyle.normal,),
+                          hintStyle: appTitleStyle(state.appFont, size: 24, weight: FontWeight.w600, color: textHint),
                           contentPadding: EdgeInsets.zero,
                           isDense: true,
                         ),
@@ -1365,14 +1332,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         expands: true,
                         textAlignVertical: TextAlignVertical.top,
                         onChanged: (_) => setState(() {}),
-                        style: GoogleFonts.dmSans(fontSize: 15, color: text, height: 1.6),
+                        style: contentStyle(state.contentFont, size: 15, color: text, height: 1.6),
                         decoration: InputDecoration(
                           filled: false,
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           hintText: 'Текст заметки...',
-                          hintStyle: GoogleFonts.dmSans(fontSize: 15, color: textHint),
+                          hintStyle: contentStyle(state.contentFont, size: 15, color: textHint, height: 1.4),
                           contentPadding: EdgeInsets.zero,
                           isDense: true,
                         ),
@@ -1520,9 +1487,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Удалить?', style: GoogleFonts.fraunces(
-              fontSize: 18, fontWeight: FontWeight.w600, color: text,
-             fontStyle: FontStyle.normal,)),
+            Text('Удалить?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
             const SizedBox(height: 8),
             Text(
               name.isEmpty ? 'Без названия' : name,

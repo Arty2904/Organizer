@@ -16,6 +16,9 @@ class AppState extends ChangeNotifier {
   String _appFont = 'fraunces';
   String get appFont => _appFont;
 
+  String _contentFont = 'dm_sans';
+  String get contentFont => _contentFont;
+
   // View modes: 1=list, 2=grid, 3=compact
   int _notesView = 1;
   int _todosView = 1;
@@ -134,6 +137,15 @@ class AppState extends ChangeNotifier {
   Set<String> noteHidden  = {};
   Set<String> todoHidden  = {};
   Set<String> eventHidden = {};
+
+  // Sidebar collapsed state — persisted across sessions
+  Set<String> sidebarCollapsed = {};
+
+  Future<void> saveSidebarCollapsed(Set<String> collapsed) async {
+    sidebarCollapsed = Set<String>.from(collapsed);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('sidebarCollapsed', jsonEncode(sidebarCollapsed.toList()));
+  }
 
   // Custom folder colors: key = folderName, value = color hex string e.g. '#FF5733'
   Map<String, String> folderColors = {};
@@ -301,6 +313,7 @@ class AppState extends ChangeNotifier {
     _darkMode = prefs.getBool('darkMode') ?? true;
     _userName = prefs.getString('userName') ?? '';
     _appFont = prefs.getString('appFont') ?? 'fraunces';
+    _contentFont = prefs.getString('contentFont') ?? 'dm_sans';
     _notesView = prefs.getInt('notesView') ?? 1;
     _todosView = prefs.getInt('todosView') ?? 1;
     _eventsView = prefs.getInt('eventsView') ?? 1;
@@ -333,6 +346,8 @@ class AppState extends ChangeNotifier {
     if (thJson != null) todoHidden = Set<String>.from(jsonDecode(thJson));
     final ehJson = prefs.getString('eventHidden');
     if (ehJson != null) eventHidden = Set<String>.from(jsonDecode(ehJson));
+    final scJson = prefs.getString('sidebarCollapsed');
+    if (scJson != null) sidebarCollapsed = Set<String>.from(jsonDecode(scJson));
 
     final notesJson = prefs.getString('notes');
     if (notesJson != null) {
@@ -439,6 +454,7 @@ class AppState extends ChangeNotifier {
     await prefs.setBool('darkMode', _darkMode);
     await prefs.setString('userName', _userName);
     await prefs.setString('appFont', _appFont);
+    await prefs.setString('contentFont', _contentFont);
     await prefs.setString('notes', jsonEncode(notes.map((n) => n.toJson()).toList()));
     await prefs.setString('todos', jsonEncode(todos.map((t) => t.toJson()).toList()));
     await prefs.setString('events', jsonEncode(events.map((e) => e.toJson()).toList()));
@@ -469,6 +485,11 @@ class AppState extends ChangeNotifier {
 
   void setAppFont(String font) {
     _appFont = font;
+    _save(); notifyListeners();
+  }
+
+  void setContentFont(String font) {
+    _contentFont = font;
     _save(); notifyListeners();
   }
 

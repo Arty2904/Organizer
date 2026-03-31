@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 import '../widgets/sidebar.dart';
+import '../theme/font_helper.dart';
 import '../screens/notes_screen.dart';
 import '../screens/todos_screen.dart';
 import '../screens/events_screen.dart';
@@ -119,14 +120,11 @@ class _HomeShellState extends State<HomeShell> {
                 title: inSelect
                     ? Text(
                         selectedIds.isEmpty ? 'Выбрать' : '${selectedIds.length} выбрано',
-                        style: GoogleFonts.fraunces(fontSize: 15, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,),
+                        style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: text),
                       )
                     : Text(
                         _tabLabels[tab],
-                        style: GoogleFonts.fraunces(
-                          fontSize: 15, fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.normal, color: text,
-                        ),
+                        style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: text),
                       ),
                 centerTitle: true,
                 actions: [
@@ -205,6 +203,7 @@ class _HomeShellState extends State<HomeShell> {
                   : _BottomNav(
                       isDark: isDark, navBg: navBg, divider: divider,
                       accent: accent, textSec: textSec, tab: tab,
+                      appFont: state.appFont,
                       onTabChanged: (i) { state.currentTab = i; state.refresh(); },
                     ),
             ),
@@ -241,6 +240,7 @@ class _BottomNav extends StatelessWidget {
   final bool isDark;
   final Color navBg, divider, accent, textSec;
   final int tab;
+  final String appFont;
   final ValueChanged<int> onTabChanged;
 
   static const _labels = ['Календарь', 'События', 'Заметки', 'Задачи'];
@@ -256,7 +256,7 @@ class _BottomNav extends StatelessWidget {
   const _BottomNav({
     required this.isDark, required this.navBg, required this.divider,
     required this.accent, required this.textSec, required this.tab,
-    required this.onTabChanged,
+    required this.appFont, required this.onTabChanged,
   });
 
   @override
@@ -282,9 +282,9 @@ class _BottomNav extends StatelessWidget {
                       Icon(active ? _activeIcons[i] : _icons[i], size: 22,
                           color: active ? accent : textSec),
                       const SizedBox(height: 2),
-                      Text(_labels[i], style: GoogleFonts.dmSans(
-                        fontSize: 9.5,
-                        fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                      Text(_labels[i], style: appTitleStyle(appFont,
+                        size: 9.5,
+                        weight: active ? FontWeight.w600 : FontWeight.w400,
                         color: active ? AppColors.terracotta : textSec,
                       )),
                     ],
@@ -372,7 +372,7 @@ class _BulkActionBar extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Удалить ${selectedIds.length} эл.?',
-                  style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+                  style: appTitleStyle(state.appFont, size: 18, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 8),
               Text('Это действие нельзя отменить.',
                   style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
@@ -445,7 +445,7 @@ class _BulkActionBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text('Переместить в папку',
-              style: GoogleFonts.fraunces(fontSize: 16, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+              style: appTitleStyle(state.appFont, size: 16, weight: FontWeight.w600, color: text)),
           ),
           const SizedBox(height: 6),
           _FolderTile(
@@ -502,7 +502,7 @@ class _BulkActionBar extends StatelessWidget {
                 decoration: BoxDecoration(color: dividerCol, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 14),
               Text('Цвет карточки',
-                style: GoogleFonts.fraunces(fontSize: 16, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,)),
+                style: appTitleStyle(state.appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 14),
               Wrap(spacing: 10, runSpacing: 10,
                 children: List.generate(22, (i) {

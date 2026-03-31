@@ -260,9 +260,9 @@ String formatDate(DateTime dt) {
   if (d == today.add(const Duration(days: 1))) return 'Завтра';
   // Show year only if not current year
   if (dt.year != now.year) {
-    return DateFormat('d MMM yyyy', 'ru').format(dt);
+    return DateFormat('d MMMM yyyy', 'ru').format(dt);
   }
-  return DateFormat('d MMM', 'ru').format(dt);
+  return DateFormat('d MMMM', 'ru').format(dt);
 }
 
 String formatDateTime(DateTime? dt) {
