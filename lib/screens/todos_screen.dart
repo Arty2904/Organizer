@@ -99,53 +99,92 @@ class _TodosScreenState extends State<TodosScreen> {
     ),
   );
 
+  void _toggleExpand(String id) {
+    setState(() {
+      if (_expandedIds.contains(id)) {
+        _expandedIds.remove(id);
+      } else {
+        _expandedIds.add(id);
+      }
+    });
+  }
+
   Widget _listView(BuildContext context, List<TodoGroup> todos, AppState state, bool isDark) {
-    if (state.todosSort == 'manual') {
-      return ReorderableListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        itemCount: todos.length,
-        onReorder: (o, n) => state.reorderTodo(o, n),
-        proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
-        itemBuilder: (ctx, i) => SelectableCardWrapper(
-          key: ValueKey(todos[i].id),
-          itemId: todos[i].id,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _TodoCard(
-              group: todos[i],
-              showTag: state.todosFilter == 'Все',
-              view: 1,
-              expanded: false,
-              onToggleExpand: () {},
-              onTap: () => _openEditor(context, todos[i]),
-              onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              GestureDetector(
+                onTap: () => _toggleAll(todos),
+                child: Row(
+                  children: [
+                    Icon(
+                      _allExpanded ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
+                      size: 14, color: AppColors.terracotta,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _allExpanded ? 'Свернуть все' : 'Развернуть все',
+                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: todos.length,
-      itemBuilder: (ctx, i) => SelectableCardWrapper(
-        key: ValueKey(todos[i].id),
-        itemId: todos[i].id,
-        child: _SwipableCard(
-          key: ValueKey('sw-td-${todos[i].id}'),
-          itemKey: ValueKey('del-todo-${todos[i].id}'),
-          padding: const EdgeInsets.only(bottom: 10),
-          onDelete: () => state.deleteTodo(todos[i].id),
-          child: _TodoCard(
-            group: todos[i],
-            showTag: state.todosFilter == 'Все',
-            view: 1,
-            expanded: false,
-            onToggleExpand: () {},
-            onTap: () => _openEditor(context, todos[i]),
-            onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
-          ),
+        Expanded(
+          child: state.todosSort == 'manual'
+            ? ReorderableListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                itemCount: todos.length,
+                onReorder: (o, n) => state.reorderTodo(o, n),
+                proxyDecorator: (child, _, __) => Material(color: Colors.transparent, child: child),
+                itemBuilder: (ctx, i) => SelectableCardWrapper(
+                  key: ValueKey(todos[i].id),
+                  itemId: todos[i].id,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _TodoCard(
+                      group: todos[i],
+                      showTag: state.todosFilter == 'Все',
+                      view: 1,
+                      expanded: _expandedIds.contains(todos[i].id),
+                      onToggleExpand: () => _toggleExpand(todos[i].id),
+                      onTap: () => _openEditor(context, todos[i]),
+                      onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                    ),
+                  ),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                itemCount: todos.length,
+                itemBuilder: (ctx, i) => SelectableCardWrapper(
+                  key: ValueKey(todos[i].id),
+                  itemId: todos[i].id,
+                  child: _SwipableCard(
+                    key: ValueKey('sw-td-${todos[i].id}'),
+                    itemKey: ValueKey('del-todo-${todos[i].id}'),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    onDelete: () => state.deleteTodo(todos[i].id),
+                    child: _TodoCard(
+                      group: todos[i],
+                      showTag: state.todosFilter == 'Все',
+                      view: 1,
+                      expanded: _expandedIds.contains(todos[i].id),
+                      onToggleExpand: () => _toggleExpand(todos[i].id),
+                      onTap: () => _openEditor(context, todos[i]),
+                      onCheckItem: (idx) => state.toggleTodoItem(todos[i].id, idx),
+                    ),
+                  ),
+                ),
+              ),
         ),
-      ),
+      ],
     );
   }
 
@@ -601,8 +640,6 @@ class _TodoCard extends StatefulWidget {
 }
 
 class _TodoCardState extends State<_TodoCard> {
-  bool _itemsExpanded = false;
-
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
@@ -694,50 +731,56 @@ class _TodoCardState extends State<_TodoCard> {
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: divider)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (group.total > 0) ...[
-                    _ProgressBar(done: group.doneCount, total: group.total),
-                    const SizedBox(height: 8),
-                  ],
-                  ...group.items.asMap().entries.map((e) {
-                    final idx = e.key;
-                    final item = e.value;
-                    return GestureDetector(
-                      onTap: () => onCheckItem(idx),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: Row(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: 15, height: 15,
-                              decoration: BoxDecoration(
-                                color: item.done ? AppColors.terracotta : Colors.transparent,
-                                border: Border.all(
-                                  color: item.done ? AppColors.terracotta : divider,
-                                  width: 1.5,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (group.total > 0) ...[
+                        _ProgressBar(done: group.doneCount, total: group.total),
+                        const SizedBox(height: 8),
+                      ],
+                      ...group.items.asMap().entries.map((e) {
+                        final idx = e.key;
+                        final item = e.value;
+                        return GestureDetector(
+                          onTap: () => onCheckItem(idx),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 5),
+                            child: Row(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  width: 15, height: 15,
+                                  decoration: BoxDecoration(
+                                    color: item.done ? AppColors.terracotta : Colors.transparent,
+                                    border: Border.all(
+                                      color: item.done ? AppColors.terracotta : divider,
+                                      width: 1.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: item.done
+                                      ? const Icon(Icons.check_rounded, size: 9, color: Colors.white)
+                                      : null,
                                 ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: item.done
-                                  ? const Icon(Icons.check_rounded, size: 9, color: Colors.white)
-                                  : null,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    item.text,
+                                    style: contentStyle(state.contentFont, size: 12, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                item.text,
-                                style: contentStyle(state.contentFont, size: 12, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -747,7 +790,7 @@ class _TodoCardState extends State<_TodoCard> {
 
     // ── List & Grid view ──
     // view 1: до 3 задач, раскрывается; view 2: до 5 задач, без кнопки
-    final maxVisible = view == 2 ? 5 : (!_itemsExpanded ? 3 : group.items.length);
+    final maxVisible = view == 2 ? 5 : (!expanded ? 3 : group.items.length);
     final items = group.items.take(maxVisible).toList();
 
     // Режим «только задача»: одна задача — без названия, бара и тега (все виды)
@@ -807,16 +850,16 @@ class _TodoCardState extends State<_TodoCard> {
       onTap: onTap,
       child: SelectionHighlight(
         borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-        child: Container(
-        padding: EdgeInsets.all(view == 2 ? 12 : 14),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 1),
-        ),
         child: Stack(
           children: [
-            Column(
+            Container(
+            padding: EdgeInsets.all(view == 2 ? 12 : 14),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
+              border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 1),
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Название — скрываем если одна задача (любой вид)
@@ -845,68 +888,88 @@ class _TodoCardState extends State<_TodoCard> {
                 ],
                 if (items.isNotEmpty) ...[
                   if (group.name.trim().isNotEmpty && group.items.length != 1) const SizedBox(height: 8),
-                  ...items.asMap().entries.map((e) {
-                    final idx = e.key;
-                    final item = e.value;
-                    return GestureDetector(
-                      onTap: () { onCheckItem(idx); },
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: 16, height: 16,
-                              decoration: BoxDecoration(
-                                color: item.done ? AppColors.terracotta : Colors.transparent,
-                                border: Border.all(
-                                  color: item.done ? AppColors.terracotta : divider,
-                                  width: 1.5,
+                  Builder(builder: (ctx) {
+                    final itemWidgets = items.asMap().entries.map((e) {
+                      final idx = e.key;
+                      final item = e.value;
+                      return GestureDetector(
+                        onTap: () { onCheckItem(idx); },
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 16, height: 16,
+                                decoration: BoxDecoration(
+                                  color: item.done ? AppColors.terracotta : Colors.transparent,
+                                  border: Border.all(
+                                    color: item.done ? AppColors.terracotta : divider,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                borderRadius: BorderRadius.circular(4),
+                                child: item.done
+                                    ? const Icon(Icons.check_rounded, size: 10, color: Colors.white)
+                                    : null,
                               ),
-                              child: item.done
-                                  ? const Icon(Icons.check_rounded, size: 10, color: Colors.white)
-                                  : null,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                item.text,
-                                style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
-                                maxLines: (view == 1 && _itemsExpanded) ? 2 : 1,
-                                overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.text,
+                                  style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: item.done ? textSec : textColor, height: 1.4).copyWith(decoration: item.done ? TextDecoration.lineThrough : null, decorationColor: textSec),
+                                  maxLines: (view == 1 && expanded) ? 2 : 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      );
+                    }).toList();
+
+                    if (view == 1 && expanded && group.items.length > 3) {
+                      return ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: itemWidgets,
+                          ),
+                        ),
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: itemWidgets,
                     );
                   }),
-                  if (view == 1 && group.items.length > 3) ...[
-                    const SizedBox(height: 4),
-                    GestureDetector(
-                      onTap: () => setState(() => _itemsExpanded = !_itemsExpanded),
-                      child: Text(
-                        _itemsExpanded ? 'Свернуть' : 'Ещё',
-                        style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
-                      ),
-                    ),
-                  ],
+                  if (view == 1 && group.items.length > 3)
+                    const SizedBox(height: 12),
                 ],
               ],
             ),
+            ),
             if (showTag && group.name.trim().isNotEmpty && group.items.length != 1)
               Positioned(
-                top: 0, right: 0,
+                top: 14, right: 14,
                 child: CategoryBadge(
                   label: group.category.length > 7
                       ? group.category.substring(0, 7)
                       : group.category,
                 ),
               ),
+            if (view == 1 && group.items.length > 3)
+              Positioned(
+                bottom: 0, right: 0,
+                child: PageFoldCorner(
+                  expanded: expanded,
+                  onTap: onToggleExpand,
+                  isDark: isDark,
+                ),
+              ),
           ],
-        ),
         ),
       ),
     );
@@ -953,6 +1016,9 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
   bool _tagMenuOpen = false;
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+  DateTime? _dueDate;
+  DateTime? _reminderDate;
+  final ScrollController _listScrollCtrl = ScrollController();
 
   @override
   void initState() {
@@ -963,6 +1029,8 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     _itemCtrls = items.map((i) => TextEditingController(text: i.text)).toList();
     _itemDone = items.map((i) => i.done).toList();
     _focusNodes.addAll(List.generate(_itemCtrls.length, (_) => FocusNode()));
+    _dueDate = widget.group?.dueDate;
+    _reminderDate = widget.group?.reminderDate;
   }
 
   void _showTagMenu(BuildContext context, AppState state, bool isDark, Color text) {
@@ -1058,6 +1126,7 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _nameCtrl.dispose();
+    _listScrollCtrl.dispose();
     for (var c in _itemCtrls) {
       c.dispose();
     }
@@ -1068,12 +1137,36 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
   }
 
   void _addRow() {
+    final newFocus = FocusNode();
     setState(() {
       _itemCtrls.add(TextEditingController());
       _itemDone.add(false);
-      _focusNodes.add(FocusNode());
+      _focusNodes.add(newFocus);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusNodes.last.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      newFocus.requestFocus();
+      if (_listScrollCtrl.hasClients) {
+        _listScrollCtrl.animateTo(
+          _listScrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+Future<void> _pickReminder() async {
+    final isDark = context.read<AppState>().darkMode;
+    final result = await showDialog<DateTime>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (_) => CustomDateTimePicker(
+        initial: _reminderDate ?? DateTime.now().add(const Duration(hours: 1)),
+        isDark: isDark,
+      ),
+    );
+    if (result != null && mounted) setState(() => _reminderDate = result);
   }
 
   void _save() {
@@ -1086,6 +1179,8 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
       widget.group!.name = _nameCtrl.text.trim().isEmpty ? 'Список' : _nameCtrl.text.trim();
       widget.group!.category = _category;
       widget.group!.items = validItems;
+      widget.group!.dueDate = _dueDate;
+      widget.group!.reminderDate = _reminderDate;
       state.updateTodo(widget.group!);
     } else {
       state.addTodo(TodoGroup(
@@ -1093,6 +1188,8 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
         name: _nameCtrl.text.trim().isEmpty ? 'Список' : _nameCtrl.text.trim(),
         category: _category,
         items: validItems,
+        dueDate: _dueDate,
+        reminderDate: _reminderDate,
       ));
     }
     Navigator.pop(context);
@@ -1113,6 +1210,17 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     final textHint = isDark ? const Color(0x4DE6AF78) : const Color(0x6E785028);
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
+
+    final mq = MediaQuery.of(context);
+    final keyboardHeight = mq.viewInsets.bottom;
+    final screenHeight = mq.size.height;
+    // Available height = screen minus keyboard minus dialog vertical insets (40*2)
+    final available = screenHeight - keyboardHeight - 80;
+    // List max height = 85% of available minus fixed header (~85px) and footer (~68px)
+    final maxListHeight = (available * 0.85 - 153).clamp(80.0, double.infinity);
+
+    String fmtReminder(DateTime d) =>
+        '${d.hour}:${d.minute.toString().padLeft(2, '0')} ${d.day}.${d.month.toString().padLeft(2, '0')}';
 
     return GestureDetector(
       onTap: () { if (_tagMenuOpen) _hideTagMenu(); },
@@ -1136,6 +1244,10 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                   child: TextField(
                     controller: _nameCtrl,
                     autofocus: widget.group == null,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) {
+                      if (_focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
+                    },
                     style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
                     decoration: InputDecoration(
                       filled: false, border: InputBorder.none,
@@ -1191,8 +1303,9 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
           Divider(color: divider, height: 1),
           // ── Список задач ──
           ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+            constraints: BoxConstraints(maxHeight: maxListHeight),
             child: ListView.builder(
+              controller: _listScrollCtrl,
               padding: const EdgeInsets.symmetric(vertical: 8),
               shrinkWrap: true,
               itemCount: _itemCtrls.length,
@@ -1223,13 +1336,15 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                       child: TextField(
                         controller: _itemCtrls[i],
                         focusNode: _focusNodes[i],
+                        textInputAction: TextInputAction.next,
+                        onEditingComplete: () {},
+                        onSubmitted: (_) => _addRow(),
                         style: contentStyle(state.contentFont, size: 14, color: text, height: 1.6),
                         decoration: InputDecoration(
                           filled: false, border: InputBorder.none,
                           hintText: 'Задача...',
                           hintStyle: contentStyle(state.contentFont, size: 14, color: textHint, height: 1.6),
                         ),
-                        onSubmitted: (_) => _addRow(),
                       ),
                     ),
                   ],
@@ -1237,37 +1352,46 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-            child: GestureDetector(
-              onTap: _addRow,
-              child: Row(
-                children: [
-                  Icon(Icons.add_rounded, size: 18, color: AppColors.terracotta),
-                  const SizedBox(width: 8),
-                  Text('Добавить задачу', style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.terracotta)),
-                ],
-              ),
-            ),
-          ),
           Divider(color: divider, height: 1),
-          // ── Кнопка сохранить ──
+          // ── Футер: Напоминание | Готово ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: GestureDetector(
-              onTap: _save,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.terracotta,
-                  borderRadius: BorderRadius.circular(14),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            child: Row(
+              children: [
+                // Напоминание
+                GestureDetector(
+                  onTap: _pickReminder,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.notifications_none_rounded,
+                        size: 18,
+                        color: _reminderDate != null ? AppColors.terracotta : textSec,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _reminderDate != null ? fmtReminder(_reminderDate!) : 'Напоминание',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: _reminderDate != null ? AppColors.terracotta : textSec,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: Text('Сохранить', style: GoogleFonts.dmSans(
-                  fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
-                )),
-              ),
+                const Spacer(),
+                // Готово
+                GestureDetector(
+                  onTap: _save,
+                  child: Text(
+                    'Готово',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.terracotta,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

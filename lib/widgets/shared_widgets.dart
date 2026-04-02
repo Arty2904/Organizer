@@ -1,8 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/font_helper.dart';
 import '../models/models.dart';
+import '../providers/app_state.dart';
+
+// ─── Page Fold Corner ─────────────────────────────────────
+/// Загнутый угол карточки — визуальный триггер разворачивания.
+/// При [expanded]=false размер 28px, при true — 44px, с анимацией.
+class PageFoldCorner extends StatelessWidget {
+  final bool expanded;
+  final VoidCallback onTap;
+  final bool isDark;
+  final double cardRadius;
+
+  const PageFoldCorner({
+    super.key,
+    required this.expanded,
+    required this.onTap,
+    required this.isDark,
+    this.cardRadius = 18.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        width: expanded ? 44.0 : 28.0,
+        height: expanded ? 44.0 : 28.0,
+        child: CustomPaint(
+          painter: _FoldPainter(isDark: isDark, cardRadius: cardRadius),
+          child: Align(
+            // centroid of the right-triangle ≈ (2/3·W, 2/3·H)
+            // Alignment maps 0..size → -1..1, so 2/3 → 1/3
+            alignment: const Alignment(0.35, 0.35),
+            child: AnimatedRotation(
+              turns: expanded ? 0.5 : 0.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: expanded ? 13.0 : 10.0,
+                color: AppColors.terracotta.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FoldPainter extends CustomPainter {
+  final bool isDark;
+  final double cardRadius;
+  const _FoldPainter({required this.isDark, this.cardRadius = 18.0});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = cardRadius.clamp(0.0, size.shortestSide);
+    final foldPath = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height - r)
+      ..arcToPoint(
+        Offset(size.width - r, size.height),
+        radius: Radius.circular(r),
+        clockwise: true,
+      )
+      ..lineTo(0, size.height)
+      ..close();
+
+    // Тень под загибом
+    canvas.drawPath(
+      foldPath,
+      Paint()
+        ..color = Colors.black.withValues(alpha: isDark ? 0.30 : 0.10)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Лицевая сторона загиба
+    canvas.drawPath(
+      foldPath,
+      Paint()
+        ..color = isDark
+            // Dark: warm terracotta glow — subtle but visible on dark cards
+            ? AppColors.terracotta.withValues(alpha: 0.22)
+            // Light: warm parchment — matches the app background palette
+            : AppColors.lightBg2.withValues(alpha: 0.95)
+        ..style = PaintingStyle.fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FoldPainter old) => old.isDark != isDark || old.cardRadius != cardRadius;
+}
 
 // ─── Category Dot ─────────────────────────────────────────
 class CategoryDot extends StatelessWidget {
@@ -278,5 +375,279 @@ String repeatLabel(RepeatInterval r, int? days) {
     case RepeatInterval.monthly: return 'Каждый месяц';
     case RepeatInterval.yearly: return 'Каждый год';
     case RepeatInterval.custom: return 'Каждые ${days ?? 1} дн.';
+  }
+}
+
+// ─── Drum DateTime Picker ─────────────────────────────────
+class CustomDateTimePicker extends StatefulWidget {
+  final DateTime initial;
+  final bool isDark;
+  const CustomDateTimePicker({super.key, required this.initial, required this.isDark});
+
+  @override
+  State<CustomDateTimePicker> createState() => _CustomDateTimePickerState();
+}
+
+class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
+  late int _day, _month, _year, _hour, _minute;
+
+  late FixedExtentScrollController _dayCtrl;
+  late FixedExtentScrollController _monthCtrl;
+  late FixedExtentScrollController _yearCtrl;
+  late FixedExtentScrollController _hourCtrl;
+  late FixedExtentScrollController _minuteCtrl;
+
+  static const _months = [
+    'Январь','Февраль','Март','Апрель','Май','Июнь',
+    'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь',
+  ];
+
+  final int _startYear = DateTime.now().year;
+  final int _endYear   = DateTime.now().year + 10;
+
+  int _daysInMonth(int m, int y) => DateTime(y, m + 1, 0).day;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.initial;
+    _day    = d.day;
+    _month  = d.month;
+    _year   = d.year;
+    _hour   = d.hour;
+    _minute = d.minute;
+
+    _dayCtrl    = FixedExtentScrollController(initialItem: _day - 1);
+    _monthCtrl  = FixedExtentScrollController(initialItem: _month - 1);
+    _yearCtrl   = FixedExtentScrollController(
+        initialItem: (_year - _startYear).clamp(0, _endYear - _startYear));
+    _hourCtrl   = FixedExtentScrollController(initialItem: _hour);
+    _minuteCtrl = FixedExtentScrollController(initialItem: _minute);
+  }
+
+  @override
+  void dispose() {
+    _dayCtrl.dispose(); _monthCtrl.dispose(); _yearCtrl.dispose();
+    _hourCtrl.dispose(); _minuteCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onDayChanged(int i) => setState(() {
+    _day = i + 1;
+    final max = _daysInMonth(_month, _year);
+    if (_day > max) { _day = max; _dayCtrl.jumpToItem(_day - 1); }
+  });
+
+  void _onMonthChanged(int i) => setState(() {
+    _month = i + 1;
+    final max = _daysInMonth(_month, _year);
+    if (_day > max) { _day = max; _dayCtrl.jumpToItem(_day - 1); }
+  });
+
+  void _onYearChanged(int i) => setState(() {
+    _year = _startYear + i;
+    final max = _daysInMonth(_month, _year);
+    if (_day > max) { _day = max; _dayCtrl.jumpToItem(_day - 1); }
+  });
+
+  Widget _drum({
+    required FixedExtentScrollController ctrl,
+    required int itemCount,
+    required int selectedIndex,
+    required String Function(int) label,
+    required ValueChanged<int> onChanged,
+    required bool isDark,
+    required String appFont,
+    double width = 64,
+  }) {
+    final text      = isDark ? AppColors.darkText    : AppColors.lightText;
+    final textSec   = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final selBg     = isDark ? AppColors.darkBg2     : AppColors.lightBg2;
+    final surfaceBg = isDark ? AppColors.darkSurface  : AppColors.lightSurface;
+
+    return SizedBox(
+      width: width,
+      height: 180,
+      child: Stack(
+        children: [
+          Center(
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: selBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          ListWheelScrollView.useDelegate(
+            controller: ctrl,
+            itemExtent: 44,
+            perspective: 0.003,
+            diameterRatio: 1.6,
+            physics: const FixedExtentScrollPhysics(),
+            onSelectedItemChanged: onChanged,
+            childDelegate: ListWheelChildBuilderDelegate(
+              childCount: itemCount,
+              builder: (ctx, i) => Center(
+                child: Text(
+                  label(i),
+                  style: appTitleStyle(
+                    appFont, size: 15, weight: FontWeight.w600,
+                    color: i == selectedIndex ? text : textSec,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    colors: [surfaceBg, surfaceBg.withValues(alpha: 0)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                    colors: [surfaceBg, surfaceBg.withValues(alpha: 0)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appFont = context.watch<AppState>().appFont;
+    final isDark  = widget.isDark;
+    final bg      = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text    = isDark ? AppColors.darkText     : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
+    final divider = isDark ? AppColors.darkDivider  : AppColors.lightDivider;
+
+    return Dialog(
+      backgroundColor: bg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Дата и время',
+                style: appTitleStyle(appFont, size: 17, weight: FontWeight.w600, color: text)),
+            const SizedBox(height: 20),
+
+            // Барабаны даты
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _drum(
+                  ctrl: _dayCtrl, itemCount: _daysInMonth(_month, _year),
+                  selectedIndex: _day - 1, label: (i) => '${i + 1}',
+                  onChanged: _onDayChanged, isDark: isDark, appFont: appFont, width: 56,
+                ),
+                const SizedBox(width: 4),
+                _drum(
+                  ctrl: _monthCtrl, itemCount: 12,
+                  selectedIndex: _month - 1, label: (i) => _months[i],
+                  onChanged: _onMonthChanged, isDark: isDark, appFont: appFont, width: 120,
+                ),
+                const SizedBox(width: 4),
+                _drum(
+                  ctrl: _yearCtrl, itemCount: _endYear - _startYear + 1,
+                  selectedIndex: (_year - _startYear).clamp(0, _endYear - _startYear),
+                  label: (i) => '${_startYear + i}',
+                  onChanged: _onYearChanged, isDark: isDark, appFont: appFont, width: 72,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            Divider(color: divider, height: 1),
+            const SizedBox(height: 12),
+
+            // Барабаны времени
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _drum(
+                  ctrl: _hourCtrl, itemCount: 24,
+                  selectedIndex: _hour, label: (i) => i.toString().padLeft(2, '0'),
+                  onChanged: (i) => setState(() => _hour = i),
+                  isDark: isDark, appFont: appFont, width: 64,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(' : ',
+                      style: appTitleStyle(appFont, size: 22, weight: FontWeight.w600, color: text)),
+                ),
+                _drum(
+                  ctrl: _minuteCtrl, itemCount: 60,
+                  selectedIndex: _minute, label: (i) => i.toString().padLeft(2, '0'),
+                  onChanged: (i) => setState(() => _minute = i),
+                  isDark: isDark, appFont: appFont, width: 64,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('Отмена', style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: textSec)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(
+                        context, DateTime(_year, _month, _day, _hour, _minute)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.terracotta,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('Готово', style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
