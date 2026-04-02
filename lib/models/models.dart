@@ -53,6 +53,8 @@ class TodoGroup {
   List<TodoItem> items;
   DateTime createdAt;
   int colorIndex;
+  DateTime? dueDate;
+  DateTime? reminderDate;
 
   TodoGroup({
     required this.id,
@@ -61,6 +63,8 @@ class TodoGroup {
     List<TodoItem>? items,
     DateTime? createdAt,
     this.colorIndex = 0,
+    this.dueDate,
+    this.reminderDate,
   })  : items = items ?? [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -74,6 +78,8 @@ class TodoGroup {
     'items': items.map((i) => i.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
     'colorIndex': colorIndex,
+    'dueDate': dueDate?.toIso8601String(),
+    'reminderDate': reminderDate?.toIso8601String(),
   };
 
   factory TodoGroup.fromJson(Map<String, dynamic> j) => TodoGroup(
@@ -83,6 +89,8 @@ class TodoGroup {
     items: (j['items'] as List? ?? []).map((e) => TodoItem.fromJson(e)).toList(),
     createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
     colorIndex: j['colorIndex'] ?? 0,
+    dueDate: j['dueDate'] != null ? DateTime.tryParse(j['dueDate']) : null,
+    reminderDate: j['reminderDate'] != null ? DateTime.tryParse(j['reminderDate']) : null,
   );
 }
 

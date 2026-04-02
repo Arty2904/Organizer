@@ -29,6 +29,35 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   String _query = '';
+  final Set<String> _expandedIds = {};
+
+  bool get _allExpanded {
+    final state = context.read<AppState>();
+    final events = state.filteredEvents(_query);
+    return events.isNotEmpty && events.every((e) => _expandedIds.contains(e.id));
+  }
+
+  void _toggleAll(List<AppEvent> events) {
+    setState(() {
+      if (_allExpanded) {
+        _expandedIds.clear();
+      } else {
+        for (final e in events) {
+          _expandedIds.add(e.id);
+        }
+      }
+    });
+  }
+
+  void _toggleExpand(String id) {
+    setState(() {
+      if (_expandedIds.contains(id)) {
+        _expandedIds.remove(id);
+      } else {
+        _expandedIds.add(id);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,54 +109,87 @@ class _EventsScreenState extends State<EventsScreen> {
   );
 
   Widget _listView(BuildContext context, List<AppEvent> events, AppState state) {
-    if (state.eventsSort == 'manual') {
-      return ReorderableListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        onReorder: (o, n) => state.reorderEvent(o, n),
-        proxyDecorator: (child, index, animation) => Material(
-          color: Colors.transparent,
-          elevation: 0,
-          child: child,
-        ),
-        itemCount: events.length,
-        itemBuilder: (ctx, i) => SelectableCardWrapper(
-          key: ValueKey(events[i].id),
-          itemId: events[i].id,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _EventCard(
-              event: events[i],
-              showTag: state.eventsFilter == 'Все',
-              view: 1,
-              isDarkOverride: state.darkMode,
-              onTap: () => _openEditor(context, events[i]),
-              onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              GestureDetector(
+                onTap: () => _toggleAll(events),
+                child: Row(
+                  children: [
+                    Icon(
+                      _allExpanded ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
+                      size: 14, color: AppColors.terracotta,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _allExpanded ? 'Свернуть все' : 'Развернуть все',
+                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: events.length,
-      itemBuilder: (ctx, i) => SelectableCardWrapper(
-        key: ValueKey(events[i].id),
-        itemId: events[i].id,
-        child: _SwipableCard(
-          key: ValueKey('sw-ev-${events[i].id}'),
-          itemKey: ValueKey('del-event-${events[i].id}'),
-          padding: const EdgeInsets.only(bottom: 10),
-          onDelete: () => state.deleteEvent(events[i].id),
-          child: _EventCard(
-            event: events[i],
-            showTag: state.eventsFilter == 'Все',
-            view: 1,
-            isDarkOverride: state.darkMode,
-            onTap: () => _openEditor(context, events[i]),
-            onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
-          ),
+        Expanded(
+          child: state.eventsSort == 'manual'
+            ? ReorderableListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                onReorder: (o, n) => state.reorderEvent(o, n),
+                proxyDecorator: (child, index, animation) => Material(
+                  color: Colors.transparent,
+                  elevation: 0,
+                  child: child,
+                ),
+                itemCount: events.length,
+                itemBuilder: (ctx, i) => SelectableCardWrapper(
+                  key: ValueKey(events[i].id),
+                  itemId: events[i].id,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _EventCard(
+                      event: events[i],
+                      showTag: state.eventsFilter == 'Все',
+                      view: 1,
+                      expanded: _expandedIds.contains(events[i].id),
+                      onToggleExpand: () => _toggleExpand(events[i].id),
+                      isDarkOverride: state.darkMode,
+                      onTap: () => _openEditor(context, events[i]),
+                      onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+                    ),
+                  ),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                itemCount: events.length,
+                itemBuilder: (ctx, i) => SelectableCardWrapper(
+                  key: ValueKey(events[i].id),
+                  itemId: events[i].id,
+                  child: _SwipableCard(
+                    key: ValueKey('sw-ev-${events[i].id}'),
+                    itemKey: ValueKey('del-event-${events[i].id}'),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    onDelete: () => state.deleteEvent(events[i].id),
+                    child: _EventCard(
+                      event: events[i],
+                      showTag: state.eventsFilter == 'Все',
+                      view: 1,
+                      expanded: _expandedIds.contains(events[i].id),
+                      onToggleExpand: () => _toggleExpand(events[i].id),
+                      isDarkOverride: state.darkMode,
+                      onTap: () => _openEditor(context, events[i]),
+                      onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+                    ),
+                  ),
+                ),
+              ),
         ),
-      ),
+      ],
     );
   }
 
@@ -628,6 +690,8 @@ class _EventCard extends StatefulWidget {
   final AppEvent event;
   final bool showTag;
   final int view;
+  final bool expanded;
+  final VoidCallback onToggleExpand;
   final VoidCallback onTap;
   final ValueChanged<int> onCheckTask;
   final bool? isDarkOverride;
@@ -637,17 +701,21 @@ class _EventCard extends StatefulWidget {
     required this.event,
     required this.showTag,
     required this.view,
+    this.expanded = false,
+    this.onToggleExpand = _noop,
     required this.onTap,
     required this.onCheckTask,
     this.isDarkOverride,
   });
+
+  static void _noop() {}
 
   @override
   State<_EventCard> createState() => _EventCardState();
 }
 
 class _EventCardState extends State<_EventCard> {
-  bool _bodyExpanded = false;
+  bool _bodyOverflows = false;
 
   @override
   Widget build(BuildContext context) {
@@ -698,17 +766,17 @@ class _EventCardState extends State<_EventCard> {
       onTap: onTap,
       child: SelectionHighlight(
         borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-        child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(view == 2 ? 12 : 14),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
-          border: Border.all(color: hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder), width: 1),
-        ),
         child: Stack(
           children: [
-            Column(
+            Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(view == 2 ? 12 : 14),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(view == 2 ? 16 : 18),
+              border: Border.all(color: hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder), width: 1),
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
@@ -723,10 +791,28 @@ class _EventCardState extends State<_EventCard> {
                 ),
                 if (event.body.isNotEmpty) ...[
                   const SizedBox(height: 5),
+                  // Текст: правый отступ оставляет место для уголка
                   Padding(
-                    padding: const EdgeInsets.only(right: 60),
-                    child: Text(event.body, style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: textSec, height: 1.4), maxLines: view == 1 ? (_bodyExpanded ? 10 : 3) : 2, overflow: TextOverflow.ellipsis),
+                    padding: EdgeInsets.only(right: view == 1 && _bodyOverflows ? 22.0 : 0.0),
+                    child: view == 1 && widget.expanded
+                      ? ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 180),
+                          child: SingleChildScrollView(
+                            physics: const ClampingScrollPhysics(),
+                            child: Text(
+                              event.body,
+                              style: contentStyle(state.contentFont, size: 12, color: textSec, height: 1.4),
+                            ),
+                          ),
+                        )
+                      : Text(
+                          event.body,
+                          style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: textSec, height: 1.4),
+                          maxLines: view == 1 ? 3 : 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                   ),
+                  // Invisible LayoutBuilder — only measures overflow, renders nothing
                   if (view == 1)
                     LayoutBuilder(builder: (ctx, constraints) {
                       final tp = TextPainter(
@@ -737,50 +823,45 @@ class _EventCardState extends State<_EventCard> {
                         maxLines: 3,
                         textDirection: TextDirection.ltr,
                       )..layout(maxWidth: constraints.maxWidth);
-                      if (!tp.didExceedMaxLines) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _bodyExpanded = !_bodyExpanded),
-                          child: Text(
-                            _bodyExpanded ? 'Свернуть' : 'Ещё',
-                            style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
-                          ),
-                        ),
-                      );
+                      final overflows = tp.didExceedMaxLines;
+                      if (overflows != _bodyOverflows) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _bodyOverflows = overflows);
+                        });
+                      }
+                      return const SizedBox.shrink();
                     }),
                 ],
                 if (event.reminderDate != null) ...[
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.terracotta.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.notifications_outlined, size: 11, color: AppColors.terracotta),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            formatDateTime(event.reminderDate),
-                            style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.terracotta.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        if (repeatStr.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              '· $repeatStr',
-                              style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta.withValues(alpha: 0.7)),
-                              overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.notifications_outlined, size: 11, color: AppColors.terracotta),
+                            const SizedBox(width: 4),
+                            Text(
+                              formatDateTime(event.reminderDate),
+                              style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
+                            if (repeatStr.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '· $repeatStr',
+                                style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta.withValues(alpha: 0.7)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 if (tasks.isNotEmpty) ...[
@@ -818,17 +899,26 @@ class _EventCardState extends State<_EventCard> {
                 ],
               ],
             ),
+            ),
             if (showTag)
               Positioned(
-                top: 0, right: 0,
+                top: 14, right: 14,
                 child: CategoryBadge(
                   label: event.category.length > 7
                       ? event.category.substring(0, 7)
                       : event.category,
                 ),
               ),
+            if (view == 1 && (widget.expanded || _bodyOverflows))
+              Positioned(
+                bottom: 0, right: 0,
+                child: PageFoldCorner(
+                  expanded: widget.expanded,
+                  onTap: widget.onToggleExpand,
+                  isDark: isDark,
+                ),
+              ),
           ],
-        ),
         ),
       ),
     );
@@ -973,7 +1063,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     final result = await showDialog<DateTime>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (_) => _CustomDateTimePicker(
+      builder: (_) => CustomDateTimePicker(
         initial: _reminderDate ?? DateTime.now().add(const Duration(days: 1)),
         isDark: isDark,
       ),
@@ -1378,314 +1468,3 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
   }
 }
 
-// ─── Custom DateTime Picker (drum scroll) ─────────────────
-class _CustomDateTimePicker extends StatefulWidget {
-  final DateTime initial;
-  final bool isDark;
-  const _CustomDateTimePicker({required this.initial, required this.isDark});
-
-  @override
-  State<_CustomDateTimePicker> createState() => _CustomDateTimePickerState();
-}
-
-class _CustomDateTimePickerState extends State<_CustomDateTimePicker> {
-  late int _day, _month, _year, _hour, _minute;
-
-  // Контроллеры для барабанов
-  late FixedExtentScrollController _dayCtrl;
-  late FixedExtentScrollController _monthCtrl;
-  late FixedExtentScrollController _yearCtrl;
-  late FixedExtentScrollController _hourCtrl;
-  late FixedExtentScrollController _minuteCtrl;
-
-  static const _months = [
-    'Январь','Февраль','Март','Апрель','Май','Июнь',
-    'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь',
-  ];
-
-  final int _startYear = DateTime.now().year;
-  final int _endYear   = DateTime.now().year + 10;
-
-  int _daysInMonth(int m, int y) => DateTime(y, m + 1, 0).day;
-
-  @override
-  void initState() {
-    super.initState();
-    final d = widget.initial;
-    _day   = d.day;
-    _month = d.month;
-    _year  = d.year;
-    _hour  = d.hour;
-    _minute = d.minute;
-
-    _dayCtrl    = FixedExtentScrollController(initialItem: _day - 1);
-    _monthCtrl  = FixedExtentScrollController(initialItem: _month - 1);
-    _yearCtrl   = FixedExtentScrollController(initialItem: _year - _startYear);
-    _hourCtrl   = FixedExtentScrollController(initialItem: _hour);
-    _minuteCtrl = FixedExtentScrollController(initialItem: _minute);
-  }
-
-  @override
-  void dispose() {
-    _dayCtrl.dispose(); _monthCtrl.dispose(); _yearCtrl.dispose();
-    _hourCtrl.dispose(); _minuteCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onDayChanged(int i) {
-    setState(() {
-      _day = i + 1;
-      final max = _daysInMonth(_month, _year);
-      if (_day > max) _day = max;
-    });
-  }
-
-  void _onMonthChanged(int i) {
-    setState(() {
-      _month = i + 1;
-      final max = _daysInMonth(_month, _year);
-      if (_day > max) {
-        _day = max;
-        _dayCtrl.jumpToItem(_day - 1);
-      }
-    });
-  }
-
-  void _onYearChanged(int i) {
-    setState(() {
-      _year = _startYear + i;
-      final max = _daysInMonth(_month, _year);
-      if (_day > max) {
-        _day = max;
-        _dayCtrl.jumpToItem(_day - 1);
-      }
-    });
-  }
-
-  Widget _drum({
-    required FixedExtentScrollController ctrl,
-    required int itemCount,
-    required String Function(int) label,
-    required ValueChanged<int> onChanged,
-    required bool isDark,
-    double width = 64,
-  }) {
-    final text    = isDark ? AppColors.darkText     : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
-    final selBg   = isDark ? AppColors.darkBg2      : AppColors.lightBg2;
-
-    return SizedBox(
-      width: width,
-      height: 180,
-      child: Stack(
-        children: [
-          // Выделение центрального элемента
-          Center(
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: selBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          // Барабан
-          ListWheelScrollView.useDelegate(
-            controller: ctrl,
-            itemExtent: 44,
-            perspective: 0.003,
-            diameterRatio: 1.6,
-            physics: const FixedExtentScrollPhysics(),
-            onSelectedItemChanged: onChanged,
-            childDelegate: ListWheelChildBuilderDelegate(
-              childCount: itemCount,
-              builder: (ctx, i) {
-                final selected = ctrl.hasClients
-                    ? (ctrl.selectedItem == i)
-                    : false;
-                return Center(
-                  child: Text(
-                    label(i),
-                    style: appTitleStyle(context.watch<AppState>().appFont, size: 15, weight: FontWeight.w600, color: selected ? text : textSec),
-                  ),
-                );
-              },
-            ),
-          ),
-          // Fade top
-          Positioned(
-            top: 0, left: 0, right: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                      (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Fade bottom
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                      (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark  = widget.isDark;
-    final bg      = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final text    = isDark ? AppColors.darkText    : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
-    final divider = isDark ? AppColors.darkDivider  : AppColors.lightDivider;
-
-    return Dialog(
-      backgroundColor: bg,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Заголовок
-            Text('Дата и время', style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: text)),
-            const SizedBox(height: 20),
-
-            // ── Барабаны даты ──
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // День
-                _drum(
-                  ctrl: _dayCtrl,
-                  itemCount: _daysInMonth(_month, _year),
-                  label: (i) => '${i + 1}',
-                  onChanged: _onDayChanged,
-                  isDark: isDark,
-                  width: 56,
-                ),
-                const SizedBox(width: 4),
-                // Месяц
-                _drum(
-                  ctrl: _monthCtrl,
-                  itemCount: 12,
-                  label: (i) => _months[i],
-                  onChanged: _onMonthChanged,
-                  isDark: isDark,
-                  width: 120,
-                ),
-                const SizedBox(width: 4),
-                // Год
-                _drum(
-                  ctrl: _yearCtrl,
-                  itemCount: _endYear - _startYear + 1,
-                  label: (i) => '${_startYear + i}',
-                  onChanged: _onYearChanged,
-                  isDark: isDark,
-                  width: 72,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            Divider(color: divider, height: 1),
-            const SizedBox(height: 12),
-
-            // ── Барабаны времени ──
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _drum(
-                  ctrl: _hourCtrl,
-                  itemCount: 24,
-                  label: (i) => i.toString().padLeft(2, '0'),
-                  onChanged: (i) => setState(() => _hour = i),
-                  isDark: isDark,
-                  width: 64,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(' : ', style: appTitleStyle(context.watch<AppState>().appFont, size: 22, weight: FontWeight.w600, color: text)),
-                ),
-                _drum(
-                  ctrl: _minuteCtrl,
-                  itemCount: 60,
-                  label: (i) => i.toString().padLeft(2, '0'),
-                  onChanged: (i) => setState(() => _minute = i),
-                  isDark: isDark,
-                  width: 64,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Кнопки ──
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('Отмена', style: GoogleFonts.dmSans(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: textSec)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context,
-                        DateTime(_year, _month, _day, _hour, _minute)),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: AppColors.terracotta,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('Готово', style: GoogleFonts.dmSans(
-                        fontSize: 13, fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
