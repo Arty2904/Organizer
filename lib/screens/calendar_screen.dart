@@ -132,6 +132,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   key: const ValueKey('year'),
                   child: PageView.builder(
                     controller: _yearPageCtrl,
+                    physics: const PageScrollPhysics(),
                     onPageChanged: (p) =>
                         setState(() => _displayYear = _baseYear + p),
                     itemBuilder: (_, p) => _YearGrid(
@@ -200,30 +201,33 @@ class _YearGrid extends StatelessWidget {
 
     return Container(
       color: bg,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
-        child: Column(
-          children: List.generate(4, (row) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: List.generate(3, (col) {
-                final month = row * 3 + col + 1;
-                return Expanded(child: Padding(
-                  padding: EdgeInsets.only(left: col > 0 ? 6 : 0),
-                  child: _MiniMonth(
-                    year: year, month: month, now: now,
-                    isDark: isDark, text: text, textSec: textSec,
-                    cardBg: cardBg,
-                    monthName: _ruMonthsShort[month - 1],
-                    selectedDay: selectedDay,
-                    onDayTap: onDayTap,
-                  ),
-                ));
-              }),
+      child: Column(
+        children: List.generate(4, (row) {
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(12, row == 0 ? 8 : 4, 12, row == 3 ? 8 : 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: List.generate(3, (col) {
+                  final month = row * 3 + col + 1;
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: col > 0 ? 6 : 0),
+                      child: _MiniMonth(
+                        year: year, month: month, now: now,
+                        isDark: isDark, text: text, textSec: textSec,
+                        cardBg: cardBg,
+                        monthName: _ruMonthsShort[month - 1],
+                        selectedDay: selectedDay,
+                        onDayTap: onDayTap,
+                      ),
+                    ),
+                  );
+                }),
+              ),
             ),
-          )),
-        ),
+          );
+        }),
       ),
     );
   }
@@ -260,60 +264,65 @@ class _MiniMonth extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(5, 7, 5, 5),
       decoration: BoxDecoration(
           color: cardBg, borderRadius: BorderRadius.circular(11)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 3),
-          child: Text(monthName, style: GoogleFonts.dmSans(
-            fontSize: 11, fontWeight: FontWeight.w700,
-            color: isCurMonth ? AppColors.terracotta : text,
-          )),
-        ),
-        Row(children: List.generate(7, (i) => Expanded(
-          child: Text(_wd[i], textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-              fontSize: 7, fontWeight: FontWeight.w600,
-              color: i >= 5
-                  ? AppColors.terracotta.withValues(alpha: 0.55)
-                  : textSec,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 2),
+            child: Text(monthName, style: GoogleFonts.dmSans(
+              fontSize: 11, fontWeight: FontWeight.w700,
+              color: isCurMonth ? AppColors.terracotta : text,
             )),
-        ))),
-        const SizedBox(height: 1),
-        for (int row = 0; row < rows; row++)
-          Row(children: List.generate(7, (col) {
-            final dn = row * 7 + col - startOffset + 1;
-            if (dn < 1 || dn > daysInMonth) {
-              return const Expanded(child: SizedBox(height: 17));
-            }
-            final isToday = now.year == year && now.month == month && now.day == dn;
-            final isSel   = selectedDay?.year == year &&
-                selectedDay?.month == month && selectedDay?.day == dn;
-            final isWknd  = col >= 5;
+          ),
+          Row(children: List.generate(7, (i) => Expanded(
+            child: Text(_wd[i], textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 7, fontWeight: FontWeight.w600,
+                color: i >= 5
+                    ? AppColors.terracotta.withValues(alpha: 0.55)
+                    : textSec,
+              )),
+          ))),
+          for (int row = 0; row < rows; row++)
+            Row(children: List.generate(7, (col) {
+              final dn = row * 7 + col - startOffset + 1;
+              if (dn < 1 || dn > daysInMonth) {
+                return const Expanded(child: SizedBox());
+              }
+              final isToday = now.year == year && now.month == month && now.day == dn;
+              final isSel   = selectedDay?.year == year &&
+                  selectedDay?.month == month && selectedDay?.day == dn;
+              final isWknd  = col >= 5;
 
-            return Expanded(child: GestureDetector(
-              onTap: () => onDayTap(DateTime(year, month, dn)),
-              child: Container(
-                height: 17,
-                margin: const EdgeInsets.all(0.4),
-                decoration: BoxDecoration(
-                  color: isSel ? AppColors.terracotta
-                      : isToday
-                          ? AppColors.terracotta.withValues(alpha: 0.18)
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
+              return Expanded(child: GestureDetector(
+                onTap: () => onDayTap(DateTime(year, month, dn)),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Container(
+                    margin: const EdgeInsets.all(0.8),
+                    decoration: BoxDecoration(
+                      color: isSel ? AppColors.terracotta
+                          : isToday
+                              ? AppColors.terracotta.withValues(alpha: 0.18)
+                              : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text('$dn', style: GoogleFonts.dmSans(
+                      fontSize: 8,
+                      fontWeight: (isToday || isSel) ? FontWeight.w700 : FontWeight.w400,
+                      color: isSel ? Colors.white
+                          : isWknd
+                              ? AppColors.terracotta.withValues(alpha: 0.75)
+                              : text,
+                    )),
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: Text('$dn', style: GoogleFonts.dmSans(
-                  fontSize: 8,
-                  fontWeight: (isToday || isSel) ? FontWeight.w700 : FontWeight.w400,
-                  color: isSel ? Colors.white
-                      : isWknd
-                          ? AppColors.terracotta.withValues(alpha: 0.75)
-                          : text,
-                )),
-              ),
-            ));
-          })),
-      ]),
+              ));
+            })),
+        ],
+      ),
     );
   }
 }
@@ -340,26 +349,60 @@ class _MonthDetail extends StatelessWidget {
     final bg      = isDark ? AppColors.darkBg2 : AppColors.lightBg2;
 
     final eventsMonth = state.eventsInMonth(displayMonth);
-    final todosMonth  = state.todosInMonth(displayMonth);
 
-    final selEvents = selectedDay == null ? eventsMonth
-        : eventsMonth.where((e) {
-            if (e.reminderDate == null) return false;
-            return e.reminderDate!.year  == selectedDay!.year &&
-                   e.reminderDate!.month == selectedDay!.month &&
-                   e.reminderDate!.day   == selectedDay!.day;
-          }).toList();
+    final today = DateTime(now.year, now.month, now.day);
+    final selDay = selectedDay != null
+        ? DateTime(selectedDay!.year, selectedDay!.month, selectedDay!.day)
+        : null;
+    final isSelToday = selDay == null || selDay == today;
 
-    final selTodos = selectedDay == null ? todosMonth
-        : todosMonth.where((t) =>
-            t.createdAt.year  == selectedDay!.year &&
-            t.createdAt.month == selectedDay!.month &&
-            t.createdAt.day   == selectedDay!.day).toList();
+    bool _sameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
 
+    // ── Режим "выбранный день" (не сегодня) ──
+    final dayEvents = selDay != null && !isSelToday
+        ? (state.events
+            .where((e) => e.reminderDate != null && _sameDay(e.reminderDate!, selDay))
+            .toList()
+          ..sort((a, b) => a.reminderDate!.compareTo(b.reminderDate!)))
+        : <AppEvent>[];
+
+    final dayTodos = selDay != null && !isSelToday
+        ? state.todos
+            .where((t) => t.reminderDate != null && _sameDay(t.reminderDate!, selDay))
+            .toList()
+        : <TodoGroup>[];
+
+    // ── Режим "сегодня/нет выбора" ──
+    final allUpcoming = state.events
+        .where((e) => e.reminderDate != null && !e.reminderDate!.isBefore(today))
+        .toList()
+      ..sort((a, b) => a.reminderDate!.compareTo(b.reminderDate!));
+
+    final todayEvents = isSelToday
+        ? allUpcoming.where((e) => _sameDay(e.reminderDate!, today)).toList()
+        : <AppEvent>[];
+
+    final upcomingEvents = isSelToday
+        ? allUpcoming.where((e) {
+            final d = DateTime(e.reminderDate!.year, e.reminderDate!.month, e.reminderDate!.day);
+            return d.isAfter(today) && d.difference(today).inDays <= 70;
+          }).toList()
+        : <AppEvent>[];
+
+    // Дни с событиями или задачами для точек на сетке
     final eventDays = eventsMonth
         .where((e) => e.reminderDate != null)
         .map((e) => e.reminderDate!.day)
         .toSet();
+    final todoDays = state.todos
+        .where((t) =>
+            t.reminderDate != null &&
+            t.reminderDate!.year == displayMonth.year &&
+            t.reminderDate!.month == displayMonth.month)
+        .map((t) => t.reminderDate!.day)
+        .toSet();
+    final markedDays = {...eventDays, ...todoDays};
 
     final firstDay    = DateTime(displayMonth.year, displayMonth.month, 1);
     final startOffset = (firstDay.weekday - 1) % 7;
@@ -406,7 +449,7 @@ class _MonthDetail extends StatelessWidget {
                     final isSel = selectedDay?.year  == displayMonth.year &&
                         selectedDay?.month == displayMonth.month &&
                         selectedDay?.day   == dn;
-                    final hasEvent = eventDays.contains(dn);
+                    final hasEvent = markedDays.contains(dn);
                     final isWknd   = col >= 5;
 
                     return Expanded(child: GestureDetector(
@@ -449,20 +492,62 @@ class _MonthDetail extends StatelessWidget {
           ]),
         ),
         Divider(color: divider, height: 1),
-        // Events / todos list
+        // Events list
         Expanded(
-          child: (selEvents.isEmpty && selTodos.isEmpty)
-              ? Center(child: Text(
-                  selectedDay == null ? 'Выберите день' : 'Нет событий',
-                  style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
-                ))
-              : ListView(
+          child: Stack(
+            children: [
+              () {
+                // Режим выбранного прошедшего/будущего дня
+                if (!isSelToday) {
+                  if (dayEvents.isEmpty && dayTodos.isEmpty) {
+                    return Center(child: Text(
+                      'Нет событий',
+                      style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                    ));
+                  }
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                    children: [
+                      if (dayEvents.isNotEmpty) ...[
+                        _ListHeader('СОБЫТИЯ', isDark),
+                        ...dayEvents.map((e) => _CalEventTile(
+                          event: e, isDark: isDark, showDate: false,
+                          onTap: () => showDialog(
+                            context: context,
+                            barrierColor: Colors.black.withValues(alpha: 0.4),
+                            builder: (_) => EventEditorDialog(event: e),
+                          ),
+                        )),
+                      ],
+                      if (dayTodos.isNotEmpty) ...[
+                        if (dayEvents.isNotEmpty) const SizedBox(height: 12),
+                        _ListHeader('ЗАДАЧИ', isDark),
+                        ...dayTodos.map((t) => _CalTodoTile(
+                          group: t, isDark: isDark,
+                          onTap: () => showDialog(
+                            context: context,
+                            barrierColor: Colors.black.withValues(alpha: 0.4),
+                            builder: (_) => TodoEditorDialog(group: t),
+                          ),
+                        )),
+                      ],
+                    ],
+                  );
+                }
+                // Режим сегодня/нет выбора — Сегодня + Ближайшие
+                if (todayEvents.isEmpty && upcomingEvents.isEmpty) {
+                  return Center(child: Text(
+                    'Нет событий',
+                    style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                  ));
+                }
+                return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   children: [
-                    if (selEvents.isNotEmpty) ...[
-                      _ListHeader('СОБЫТИЯ', isDark),
-                      ...selEvents.map((e) => _CalEventTile(
-                        event: e, isDark: isDark,
+                    if (todayEvents.isNotEmpty) ...[
+                      _ListHeader('СЕГОДНЯ', isDark),
+                      ...todayEvents.map((e) => _CalEventTile(
+                        event: e, isDark: isDark, showDate: false,
                         onTap: () => showDialog(
                           context: context,
                           barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -470,20 +555,42 @@ class _MonthDetail extends StatelessWidget {
                         ),
                       )),
                     ],
-                    if (selTodos.isNotEmpty) ...[
-                      if (selEvents.isNotEmpty) const SizedBox(height: 12),
-                      _ListHeader('ДЕЛА', isDark),
-                      ...selTodos.map((t) => _CalTodoTile(
-                        group: t, isDark: isDark,
+                    if (upcomingEvents.isNotEmpty) ...[
+                      if (todayEvents.isNotEmpty) const SizedBox(height: 12),
+                      _ListHeader('БЛИЖАЙШИЕ', isDark),
+                      ...upcomingEvents.map((e) => _CalEventTile(
+                        event: e, isDark: isDark, showDate: true,
                         onTap: () => showDialog(
                           context: context,
                           barrierColor: Colors.black.withValues(alpha: 0.4),
-                          builder: (_) => TodoEditorDialog(group: t),
+                          builder: (_) => EventEditorDialog(event: e),
                         ),
                       )),
                     ],
                   ],
+                );
+              }(),
+              // ── FAB ──
+              Positioned(
+                bottom: 20, right: 0,
+                child: SizedBox(
+                  width: 44, height: 44,
+                  child: FloatingActionButton(
+                    heroTag: 'cal_fab',
+                    onPressed: () => showDialog(
+                      context: context,
+                      barrierColor: Colors.black.withValues(alpha: 0.4),
+                      builder: (_) => const EventEditorDialog(),
+                    ),
+                    backgroundColor: isDark ? AppColors.terracotta : AppColors.terracottaLight,
+                    elevation: 6,
+                    shape: const CircleBorder(),
+                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                  ),
                 ),
+              ),
+            ],
+          ),
         ),
       ]),
     );
@@ -505,9 +612,12 @@ class _ListHeader extends StatelessWidget {
 }
 
 class _CalEventTile extends StatelessWidget {
-  final AppEvent event; final bool isDark; final VoidCallback onTap;
+  final AppEvent event;
+  final bool isDark;
+  final bool showDate;
+  final VoidCallback onTap;
   const _CalEventTile(
-      {required this.event, required this.isDark, required this.onTap});
+      {required this.event, required this.isDark, required this.onTap, this.showDate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -517,6 +627,13 @@ class _CalEventTile extends StatelessWidget {
     final divider  = isDark ? AppColors.darkDivider  : AppColors.lightDivider;
     final catColor = AppColors.categoryColor(event.category);
     final appFont  = context.watch<AppState>().appFont;
+
+    String? timeLabel;
+    if (event.reminderDate != null) {
+      timeLabel = showDate
+          ? DateFormat('d MMM, HH:mm', 'ru').format(event.reminderDate!)
+          : DateFormat('HH:mm').format(event.reminderDate!);
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -536,8 +653,8 @@ class _CalEventTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(event.title, style: appTitleStyle(appFont,
                 size: 14, weight: FontWeight.w600, color: text)),
-            if (event.reminderDate != null)
-              Text(DateFormat('HH:mm').format(event.reminderDate!),
+            if (timeLabel != null)
+              Text(timeLabel,
                   style: GoogleFonts.dmSans(
                       fontSize: 11, color: AppColors.terracotta)),
           ])),

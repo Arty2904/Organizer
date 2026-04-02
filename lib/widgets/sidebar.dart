@@ -71,6 +71,11 @@ class _AppSidebarState extends State<AppSidebar> {
 
     final sections = [
       _SectionData(
+        tab: 3, label: 'ЗАДАЧИ',
+        folders: state.todoFolders,
+        items: state.todos.map((t) => _ItemData(id: t.id, title: t.name.isEmpty ? 'Без названия' : t.name, category: t.category)).toList(),
+      ),
+      _SectionData(
         tab: 2, label: 'ЗАМЕТКИ',
         folders: state.noteFolders,
         items: state.notes.map((n) => _ItemData(id: n.id, title: n.title.isEmpty ? 'Без названия' : n.title, category: n.category)).toList(),
@@ -79,11 +84,6 @@ class _AppSidebarState extends State<AppSidebar> {
         tab: 1, label: 'СОБЫТИЯ',
         folders: state.eventFolders,
         items: state.events.map((e) => _ItemData(id: e.id, title: e.title.isEmpty ? 'Событие' : e.title, category: e.category)).toList(),
-      ),
-      _SectionData(
-        tab: 3, label: 'ЗАДАЧИ',
-        folders: state.todoFolders,
-        items: state.todos.map((t) => _ItemData(id: t.id, title: t.name.isEmpty ? 'Без названия' : t.name, category: t.category)).toList(),
       ),
     ];
 
@@ -239,11 +239,8 @@ class _AppSidebarState extends State<AppSidebar> {
                                   child: Row(children: [
                                     Icon(
                                       fCollapsed ? Icons.chevron_right_rounded : Icons.expand_more_rounded,
-                                      size: 13, color: fCollapsed ? textSec : fColor,
+                                      size: 16, color: fColor,
                                     ),
-                                    const SizedBox(width: 5),
-                                    Container(width: 7, height: 7,
-                                      decoration: BoxDecoration(color: fColor, shape: BoxShape.circle)),
                                     const SizedBox(width: 7),
                                     Expanded(child: Text(folder, style: GoogleFonts.dmSans(
                                       fontSize: 12, fontWeight: FontWeight.w600,

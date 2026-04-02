@@ -299,6 +299,92 @@ class _BottomNav extends StatelessWidget {
   }
 }
 
+
+// ─── Toast helper ─────────────────────────────────────────
+void _showFolderToast(BuildContext context, String folderName, bool isDark) {
+  final overlay = Overlay.of(context);
+  final label = folderName.isEmpty ? 'Без категории' : folderName;
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => _FolderToast(
+      label: label,
+      isDark: isDark,
+      onDismiss: () => entry.remove(),
+    ),
+  );
+  overlay.insert(entry);
+}
+
+class _FolderToast extends StatefulWidget {
+  final String label;
+  final bool isDark;
+  final VoidCallback onDismiss;
+  const _FolderToast({required this.label, required this.isDark, required this.onDismiss});
+
+  @override
+  State<_FolderToast> createState() => _FolderToastState();
+}
+
+class _FolderToastState extends State<_FolderToast> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _ctrl.forward();
+    Future.delayed(const Duration(seconds: 3), _dismiss);
+  }
+
+  void _dismiss() {
+    if (!mounted) return;
+    _ctrl.reverse().then((_) { if (mounted) widget.onDismiss(); });
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 100,
+      left: 0, right: 0,
+      child: Center(
+        child: FadeTransition(
+          opacity: _anim,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(_anim),
+            child: GestureDetector(
+              onTap: _dismiss,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: widget.isDark ? const Color(0xFF2E2620) : const Color(0xFF3D2B1F),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.folder_rounded, size: 15, color: AppColors.terracotta),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Перемещено в «${widget.label}»',
+                      style: GoogleFonts.dmSans(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500, decoration: TextDecoration.none),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Bulk Action Bar ──────────────────────────────────────
 class _BulkActionBar extends StatelessWidget {
   final bool isDark;
@@ -430,6 +516,8 @@ class _BulkActionBar extends StatelessWidget {
       if (tab == 1) state.bulkMoveEvents(ids, cat);
       else if (tab == 2) state.bulkMoveNotes(ids, cat);
       else state.bulkMoveTodos(ids, cat);
+      onDone();
+      _showFolderToast(context, cat, isDarkL);
     }
 
     showModalBottomSheet(

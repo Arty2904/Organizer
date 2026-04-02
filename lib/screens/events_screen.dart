@@ -30,6 +30,13 @@ class EventsScreen extends StatefulWidget {
 class _EventsScreenState extends State<EventsScreen> {
   String _query = '';
   final Set<String> _expandedIds = {};
+  final ValueNotifier<String?> _listDragState = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _listDragState.dispose();
+    super.dispose();
+  }
 
   bool get _allExpanded {
     final state = context.read<AppState>();
@@ -136,21 +143,36 @@ class _EventsScreenState extends State<EventsScreen> {
           ),
         ),
         Expanded(
-          child: state.eventsSort == 'manual'
-            ? ReorderableListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                onReorder: (o, n) => state.reorderEvent(o, n),
-                proxyDecorator: (child, index, animation) => Material(
-                  color: Colors.transparent,
-                  elevation: 0,
-                  child: child,
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+            itemCount: events.length,
+            itemBuilder: (ctx, i) {
+              final card = SelectableCardWrapper(
+                key: ValueKey(events[i].id),
+                itemId: events[i].id,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _EventCard(
+                    event: events[i],
+                    showTag: state.eventsFilter == 'Все',
+                    view: 1,
+                    expanded: _expandedIds.contains(events[i].id),
+                    onToggleExpand: () => _toggleExpand(events[i].id),
+                    isDarkOverride: state.darkMode,
+                    onTap: () => _openEditor(context, events[i]),
+                    onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+                  ),
                 ),
-                itemCount: events.length,
-                itemBuilder: (ctx, i) => SelectableCardWrapper(
-                  key: ValueKey(events[i].id),
-                  itemId: events[i].id,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
+              );
+              if (state.eventsSort != 'manual') {
+                return _SwipableCard(
+                  key: ValueKey('sw-ev-${events[i].id}'),
+                  itemKey: ValueKey('del-event-${events[i].id}'),
+                  padding: const EdgeInsets.only(bottom: 10),
+                  onDelete: () => state.deleteEvent(events[i].id),
+                  child: SelectableCardWrapper(
+                    key: ValueKey('sel-${events[i].id}'),
+                    itemId: events[i].id,
                     child: _EventCard(
                       event: events[i],
                       showTag: state.eventsFilter == 'Все',
@@ -162,32 +184,17 @@ class _EventsScreenState extends State<EventsScreen> {
                       onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
                     ),
                   ),
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                itemCount: events.length,
-                itemBuilder: (ctx, i) => SelectableCardWrapper(
-                  key: ValueKey(events[i].id),
-                  itemId: events[i].id,
-                  child: _SwipableCard(
-                    key: ValueKey('sw-ev-${events[i].id}'),
-                    itemKey: ValueKey('del-event-${events[i].id}'),
-                    padding: const EdgeInsets.only(bottom: 10),
-                    onDelete: () => state.deleteEvent(events[i].id),
-                    child: _EventCard(
-                      event: events[i],
-                      showTag: state.eventsFilter == 'Все',
-                      view: 1,
-                      expanded: _expandedIds.contains(events[i].id),
-                      onToggleExpand: () => _toggleExpand(events[i].id),
-                      isDarkOverride: state.darkMode,
-                      onTap: () => _openEditor(context, events[i]),
-                      onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
-                    ),
-                  ),
-                ),
-              ),
+                );
+              }
+              return _DraggableListCard(
+                key: ValueKey(events[i].id),
+                itemId: events[i].id,
+                dragState: _listDragState,
+                onReorder: (f, t) => state.reorderEventById(f, t),
+                child: card,
+              );
+            },
+          ),
         ),
       ],
     );
@@ -202,17 +209,11 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Widget _compactView(BuildContext context, List<AppEvent> events, AppState state) {
-    if (state.eventsSort == 'manual') {
-      return ReorderableListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        onReorder: (o, n) => state.reorderEvent(o, n),
-        proxyDecorator: (child, index, animation) => Material(
-          color: Colors.transparent,
-          elevation: 0,
-          child: child,
-        ),
-        itemCount: events.length,
-        itemBuilder: (ctx, i) => SelectableCardWrapper(
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      itemCount: events.length,
+      itemBuilder: (ctx, i) {
+        final card = SelectableCardWrapper(
           key: ValueKey(events[i].id),
           itemId: events[i].id,
           child: _EventCard(
@@ -224,24 +225,16 @@ class _EventsScreenState extends State<EventsScreen> {
             onTap: () => _openEditor(context, events[i]),
             onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
           ),
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      itemCount: events.length,
-      itemBuilder: (ctx, i) => SelectableCardWrapper(
-        key: ValueKey(events[i].id),
-        itemId: events[i].id,
-        child: _EventCard(
-          event: events[i],
-          showTag: false,
-          view: 3,
-          isDarkOverride: state.darkMode,
-          onTap: () => _openEditor(context, events[i]),
-          onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
-        ),
-      ),
+        );
+        if (state.eventsSort != 'manual') return card;
+        return _DraggableListCard(
+          key: ValueKey(events[i].id),
+          itemId: events[i].id,
+          dragState: _listDragState,
+          onReorder: (f, t) => state.reorderEventById(f, t),
+          child: card,
+        );
+      },
     );
   }
 
@@ -254,6 +247,123 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 }
 
+
+
+// ─── Draggable List Card (list & compact views) ──────────
+class _DraggableListCard extends StatefulWidget {
+  final String itemId;
+  final void Function(String fromId, String toId) onReorder;
+  final ValueNotifier<String?> dragState;
+  final Widget child;
+
+  const _DraggableListCard({
+    super.key,
+    required this.itemId,
+    required this.onReorder,
+    required this.dragState,
+    required this.child,
+  });
+
+  @override
+  State<_DraggableListCard> createState() => _DraggableListCardState();
+}
+
+class _DraggableListCardState extends State<_DraggableListCard> {
+  static String? _fromId(String? v) => v?.split('->')[0];
+  static String? _toId(String? v) =>
+      (v != null && v.contains('->')) ? v.split('->')[1] : null;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: widget.dragState,
+      builder: (ctx, dragVal, _) {
+        final isMe = _fromId(dragVal) == widget.itemId;
+        final isTarget = _toId(dragVal) == widget.itemId;
+
+        return DragTarget<String>(
+          onWillAcceptWithDetails: (d) {
+            if (d.data == widget.itemId) return false;
+            widget.dragState.value = '${d.data}->${widget.itemId}';
+            return true;
+          },
+          onLeave: (fromId) {
+            if (fromId != null) widget.dragState.value = fromId;
+          },
+          onAcceptWithDetails: (d) {
+            final from = d.data;
+            final to = widget.itemId;
+            widget.dragState.value = null;
+            if (from != to) {
+              Future.delayed(const Duration(milliseconds: 220), () {
+                widget.onReorder(from, to);
+              });
+            }
+          },
+          builder: (ctx, _, __) {
+            return LongPressDraggable<String>(
+              data: widget.itemId,
+              delay: const Duration(milliseconds: 350),
+              onDragStarted: () => widget.dragState.value = widget.itemId,
+              onDragEnd: (_) => widget.dragState.value = null,
+              onDraggableCanceled: (_, __) => widget.dragState.value = null,
+              feedback: Material(
+                color: Colors.transparent,
+                child: SizedBox(
+                  width: MediaQuery.of(ctx).size.width - 32,
+                  child: Opacity(opacity: 0.88, child: widget.child),
+                ),
+              ),
+              childWhenDragging: const SizedBox.shrink(),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 120),
+                opacity: isMe ? 0.0 : 1.0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOut,
+                      child: isTarget
+                          ? _DropIndicator(child: widget.child)
+                          : const SizedBox.shrink(),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: isTarget
+                          ? BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.terracotta.withValues(alpha: 0.5),
+                                width: 1.5,
+                              ),
+                            )
+                          : const BoxDecoration(),
+                      child: widget.child,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DropIndicator extends StatelessWidget {
+  final Widget child;
+  const _DropIndicator({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0,
+      child: IgnorePointer(child: child),
+    );
+  }
+}
 
 // ─── Events Masonry Grid with drag support ────────────────
 class _EventsMasonryGrid extends StatefulWidget {
@@ -360,7 +470,6 @@ class _EventGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🃏 _EventGridCard build: isDark=$isDark asFeedback=$asFeedback cardBg=${asFeedback ? "OPAQUE" : "TRANSPARENT"}');
     final bool hasColor = !asFeedback && event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
     final Color cardBg = asFeedback
         ? (isDark ? AppColors.darkBg : AppColors.lightBg)
@@ -489,10 +598,12 @@ class _DraggableMasonryCardState extends State<_DraggableMasonryCard> {
             if (fromId != null) widget.dragState.value = fromId;
           },
           onAcceptWithDetails: (details) {
+            final fromId = details.data;
+            final toId = widget.itemId;
             widget.dragState.value = null;
-            if (details.data != widget.itemId) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.onReorder(details.data, widget.itemId);
+            if (fromId != toId) {
+              Future.delayed(const Duration(milliseconds: 220), () {
+                widget.onReorder(fromId, toId);
               });
             }
           },
@@ -504,8 +615,7 @@ class _DraggableMasonryCardState extends State<_DraggableMasonryCard> {
               onDragEnd: (_) => widget.dragState.value = null,
               onDraggableCanceled: (_, __) => widget.dragState.value = null,
               feedback: Builder(builder: (ctx) {
-                debugPrint('🚀 FEEDBACK built! ctx.widget=${ctx.widget.runtimeType}');
-                return SizedBox(
+                  return SizedBox(
                   width: widget.feedbackWidth,
                   child: Material(
                     color: Colors.transparent,
@@ -521,8 +631,8 @@ class _DraggableMasonryCardState extends State<_DraggableMasonryCard> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOut,
                       child: isTarget
                           ? _SizedPlaceholder(visible: true, child: widget.child)
                           : const SizedBox.shrink(),
@@ -1248,7 +1358,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
       onTap: () { if (_tagMenuOpen) _hideTagMenu(); },
       child: Dialog(
       backgroundColor: bg,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1339,8 +1449,8 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             child: TextField(
               controller: _bodyCtrl,
               style: contentStyle(state.contentFont, size: 13, color: text, height: 1.4),
-              maxLines: 3,
-              minLines: 1,
+              maxLines: 10,
+              minLines: 5,
               decoration: InputDecoration(
                 filled: false, border: InputBorder.none,
                 hintText: 'Описание...',
@@ -1349,117 +1459,76 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          // ── Поля Напоминание / Повтор ──
+          Divider(color: divider, height: 1),
+          // ── Футер: Напоминание | Повтор | Готово ──
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             child: Row(
               children: [
                 // Напоминание
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _pickDate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: fieldBg,
-                        borderRadius: BorderRadius.circular(12),
+                GestureDetector(
+                  onTap: _pickDate,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.notifications_none_rounded,
+                        size: 18,
+                        color: _reminderDate != null ? AppColors.terracotta : textSec,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('НАПОМИНАНИЕ', style: GoogleFonts.dmSans(
-                            fontSize: 8, fontWeight: FontWeight.w800,
-                            letterSpacing: 1.1, color: AppColors.terracotta,
-                          )),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.notifications_outlined, size: 13, color: _reminderDate != null ? AppColors.terracotta : textSec),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  _reminderDate != null ? formatDateTime(_reminderDate) : 'Не задано',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: _reminderDate != null ? text : textSec,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (_reminderDate != null)
-                                GestureDetector(
-                                  onTap: () => setState(() => _reminderDate = null),
-                                  child: Icon(Icons.close_rounded, size: 13, color: textSec),
-                                ),
-                            ],
-                          ),
-                        ],
+                      const SizedBox(width: 4),
+                      Text(
+                        _reminderDate != null ? formatDateTime(_reminderDate) : 'Напоминание',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: _reminderDate != null ? AppColors.terracotta : textSec,
+                        ),
                       ),
-                    ),
+                      if (_reminderDate != null) ...[
+                        const SizedBox(width: 2),
+                        GestureDetector(
+                          onTap: () => setState(() => _reminderDate = null),
+                          child: Icon(Icons.close_rounded, size: 13, color: textSec),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 // Повтор
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _showRepeatPicker,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: fieldBg,
-                        borderRadius: BorderRadius.circular(12),
+                GestureDetector(
+                  onTap: _showRepeatPicker,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.repeat_rounded,
+                        size: 18,
+                        color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('ПОВТОР', style: GoogleFonts.dmSans(
-                            fontSize: 8, fontWeight: FontWeight.w800,
-                            letterSpacing: 1.1, color: AppColors.terracotta,
-                          )),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.repeat_rounded, size: 13, color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  _repeatLabel,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: _repeat != RepeatInterval.none ? text : textSec,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      const SizedBox(width: 4),
+                      Text(
+                        _repeat != RepeatInterval.none ? _repeatLabel : 'Повтор',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                // Готово
+                GestureDetector(
+                  onTap: _save,
+                  child: Text(
+                    'Готово',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.terracotta,
                     ),
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          // ── Кнопка сохранить ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: GestureDetector(
-              onTap: _save,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.terracotta,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: Text('Сохранить', style: GoogleFonts.dmSans(
-                  fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
-                )),
-              ),
             ),
           ),
         ],

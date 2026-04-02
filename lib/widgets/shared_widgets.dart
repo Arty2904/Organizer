@@ -467,12 +467,12 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
 
     return SizedBox(
       width: width,
-      height: 180,
+      height: 140,
       child: Stack(
         children: [
           Center(
             child: Container(
-              height: 44,
+              height: 36,
               decoration: BoxDecoration(
                 color: selBg,
                 borderRadius: BorderRadius.circular(10),
@@ -481,7 +481,7 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
           ),
           ListWheelScrollView.useDelegate(
             controller: ctrl,
-            itemExtent: 44,
+            itemExtent: 36,
             perspective: 0.003,
             diameterRatio: 1.6,
             physics: const FixedExtentScrollPhysics(),
@@ -492,7 +492,7 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
                 child: Text(
                   label(i),
                   style: appTitleStyle(
-                    appFont, size: 15, weight: FontWeight.w600,
+                    appFont, size: 14, weight: FontWeight.w600,
                     color: i == selectedIndex ? text : textSec,
                   ),
                 ),
@@ -546,13 +546,13 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Дата и время',
-                style: appTitleStyle(appFont, size: 17, weight: FontWeight.w600, color: text)),
-            const SizedBox(height: 20),
+                style: appTitleStyle(appFont, size: 16, weight: FontWeight.w600, color: text)),
+            const SizedBox(height: 12),
 
             // Барабаны даты
             Row(
@@ -579,9 +579,9 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Divider(color: divider, height: 1),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
             // Барабаны времени
             Row(
@@ -607,43 +607,22 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
               ],
             ),
 
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('Отмена', style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: textSec)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
+            const SizedBox(height: 8),
+            Divider(color: divider, height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 10, 0, 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
                     onTap: () => Navigator.pop(
                         context, DateTime(_year, _month, _day, _hour, _minute)),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: AppColors.terracotta,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('Готово', style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                    ),
+                    child: Text('Готово', style: GoogleFonts.dmSans(
+                        fontSize: 14, fontWeight: FontWeight.w600,
+                        color: AppColors.terracotta)),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

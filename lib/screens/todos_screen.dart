@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -29,8 +30,14 @@ class TodosScreen extends StatefulWidget {
 
 class _TodosScreenState extends State<TodosScreen> {
   String _query = '';
-  // compact view: which cards are expanded
   final Set<String> _expandedIds = {};
+  final ValueNotifier<String?> _listDragState = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _listDragState.dispose();
+    super.dispose();
+  }
 
   bool get _allExpanded {
     final state = context.read<AppState>();
@@ -997,6 +1004,42 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
+// ─── Category Chip ────────────────────────────────────────
+class _CategoryChip extends StatelessWidget {
+  final String category;
+  final Color color;
+  final bool tagMenuOpen;
+  const _CategoryChip({required this.category, required this.color, required this.tagMenuOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            category.isEmpty ? '–' : category,
+            style: GoogleFonts.dmSans(
+              fontSize: 11, fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            tagMenuOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+            size: 14, color: color,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Todo Editor Dialog (center) ──────────────────────────
 class TodoEditorDialog extends StatefulWidget {
   final TodoGroup? group;
@@ -1031,6 +1074,11 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     _focusNodes.addAll(List.generate(_itemCtrls.length, (_) => FocusNode()));
     _dueDate = widget.group?.dueDate;
     _reminderDate = widget.group?.reminderDate;
+    if (widget.group == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
+      });
+    }
   }
 
   void _showTagMenu(BuildContext context, AppState state, bool isDark, Color text) {
@@ -1232,75 +1280,59 @@ Future<void> _pickReminder() async {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Шапка: название + выпадающий список папки ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Stack(
-              alignment: Alignment.centerRight,
-              children: [
-                // Название
-                Padding(
-                  padding: const EdgeInsets.only(right: 120),
-                  child: TextField(
-                    controller: _nameCtrl,
-                    autofocus: widget.group == null,
-                    textInputAction: TextInputAction.next,
-                    onSubmitted: (_) {
-                      if (_focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
-                    },
-                    style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
-                    decoration: InputDecoration(
-                      filled: false, border: InputBorder.none,
-                      hintText: 'Название списка',
-                      hintStyle: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: textHint),
-                      contentPadding: EdgeInsets.zero, isDense: true,
-                    ),
-                  ),
-                ),
-                // Выпадающий список папки
-                CompositedTransformTarget(
-                  link: _layerLink,
-                  child: GestureDetector(
-                    onTap: () {
-                      if (_tagMenuOpen) {
-                        _hideTagMenu();
-                      } else {
-                        _showTagMenu(context, state, isDark, text);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: state.folderColor(_category).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _category.isEmpty ? '–' : _category,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11, fontWeight: FontWeight.w700,
-                              color: state.folderColor(_category),
+          // ── Шапка: только если задач > 1 ──
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            child: _itemCtrls.length > 1
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Stack(
+                      alignment: Alignment.centerRight,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 120),
+                          child: TextField(
+                            controller: _nameCtrl,
+                            textInputAction: TextInputAction.next,
+                            onSubmitted: (_) {
+                              if (_focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
+                            },
+                            style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
+                            decoration: InputDecoration(
+                              filled: false, border: InputBorder.none,
+                              hintText: 'Название списка',
+                              hintStyle: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: textHint),
+                              contentPadding: EdgeInsets.zero, isDense: true,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            _tagMenuOpen
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            size: 14, color: state.folderColor(_category),
+                        ),
+                        CompositedTransformTarget(
+                          link: _layerLink,
+                          child: GestureDetector(
+                            onTap: () => _tagMenuOpen ? _hideTagMenu() : _showTagMenu(context, state, isDark, text),
+                            child: _CategoryChip(
+                              category: _category,
+                              color: state.folderColor(_category),
+                              tagMenuOpen: _tagMenuOpen,
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ],
-            ),
+                  )
+                : const SizedBox.shrink(),
           ),
-          const SizedBox(height: 12),
-          Divider(color: divider, height: 1),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            child: _itemCtrls.length > 1
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    const SizedBox(height: 12),
+                    Divider(color: divider, height: 1),
+                  ])
+                : const SizedBox(height: 16),
+          ),
           // ── Список задач ──
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxListHeight),
@@ -1338,7 +1370,7 @@ Future<void> _pickReminder() async {
                         focusNode: _focusNodes[i],
                         textInputAction: TextInputAction.next,
                         onEditingComplete: () {},
-                        onSubmitted: (_) => _addRow(),
+                        onSubmitted: (_) { if (_itemCtrls[i].text.trim().isNotEmpty) _addRow(); },
                         style: contentStyle(state.contentFont, size: 14, color: text, height: 1.6),
                         decoration: InputDecoration(
                           filled: false, border: InputBorder.none,
@@ -1347,6 +1379,21 @@ Future<void> _pickReminder() async {
                         ),
                       ),
                     ),
+                    // Категория-чип — только когда задача одна
+                    if (i == 0 && _itemCtrls.length == 1) ...[
+                      const SizedBox(width: 8),
+                      CompositedTransformTarget(
+                        link: _layerLink,
+                        child: GestureDetector(
+                          onTap: () => _tagMenuOpen ? _hideTagMenu() : _showTagMenu(context, state, isDark, text),
+                          child: _CategoryChip(
+                            category: _category,
+                            color: state.folderColor(_category),
+                            tagMenuOpen: _tagMenuOpen,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

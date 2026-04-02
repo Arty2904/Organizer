@@ -842,13 +842,13 @@ class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
             }
           },
           onAcceptWithDetails: (details) {
-            // Сначала сбрасываем состояние, потом reorder через postFrame —
-            // иначе notifyListeners() внутри reorder делает rebuild до того
-            // как dragState стал null, и карточка зависает с opacity:0.
+            final fromId = details.data;
+            final toId = widget.itemId;
             widget.dragState.value = null;
-            if (details.data != widget.itemId) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.onReorder(details.data, widget.itemId);
+            if (fromId != toId) {
+              // Delay reorder so AnimatedSize can smoothly collapse the placeholder
+              Future.delayed(const Duration(milliseconds: 220), () {
+                widget.onReorder(fromId, toId);
               });
             }
           },
@@ -878,8 +878,8 @@ class _DraggableMasonryCardState<T> extends State<_DraggableMasonryCard<T>> {
                   children: [
                     // Превью-слот ПЕРЕД карточкой (появляется когда тянут сюда)
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOut,
                       child: isTarget
                           ? _SizedPlaceholder(visible: true, child: widget.child)
                           : const SizedBox.shrink(),
