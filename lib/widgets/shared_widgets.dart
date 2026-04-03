@@ -280,15 +280,20 @@ class CategoryFilterRow extends StatelessWidget {
   final List<String> categories;
   final String selected;
   final ValueChanged<String> onSelect;
+  /// Optional color resolver — defaults to [AppColors.categoryColor].
+  /// Pass [AppState.folderColor] to use per-folder colors from settings.
+  final Color Function(String)? colorResolver;
   const CategoryFilterRow({
     super.key,
     required this.categories,
     required this.selected,
     required this.onSelect,
+    this.colorResolver,
   });
 
   @override
   Widget build(BuildContext context) {
+    final resolveColor = colorResolver ?? AppColors.categoryColor;
     return SizedBox(
       height: 32,
       child: ListView.separated(
@@ -299,6 +304,7 @@ class CategoryFilterRow extends StatelessWidget {
           final cat = categories[i];
           final isAll = cat == 'Все';
           final active = selected == cat;
+          final folderCol = isAll ? AppColors.terracotta : resolveColor(cat);
           return GestureDetector(
             onTap: () => onSelect(cat),
             child: AnimatedContainer(
@@ -306,7 +312,7 @@ class CategoryFilterRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: active
-                    ? (isAll ? AppColors.terracotta : AppColors.categoryColor(cat))
+                    ? folderCol
                     : (Theme.of(context).brightness == Brightness.dark
                         ? AppColors.darkCard
                         : AppColors.lightCardAlt),
@@ -319,7 +325,7 @@ class CategoryFilterRow extends StatelessWidget {
                     Container(
                       width: 6, height: 6,
                       decoration: BoxDecoration(
-                        color: AppColors.categoryColor(cat),
+                        color: folderCol,
                         shape: BoxShape.circle,
                       ),
                     ),

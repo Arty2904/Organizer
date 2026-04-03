@@ -93,6 +93,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 categories: state.eventCategories,
                 selected: state.eventsFilter,
                 onSelect: (c) { state.eventsFilter = c; state.refresh(); },
+                colorResolver: state.folderColor,
               ),
               const SizedBox(height: 12),
             ],

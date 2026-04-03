@@ -73,6 +73,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 categories: state.noteCategories,
                 selected: state.notesFilter,
                 onSelect: (c) { state.notesFilter = c; state.refresh(); },
+                colorResolver: state.folderColor,
               ),
               const SizedBox(height: 12),
             ],

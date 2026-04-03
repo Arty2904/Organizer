@@ -84,6 +84,7 @@ class _TodosScreenState extends State<TodosScreen> {
                 categories: state.todoCategories,
                 selected: state.todosFilter,
                 onSelect: (c) { state.todosFilter = c; state.refresh(); },
+                colorResolver: state.folderColor,
               ),
               const SizedBox(height: 12),
             ],
