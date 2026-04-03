@@ -1184,6 +1184,25 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     super.dispose();
   }
 
+  void _removeRow(int i) {
+    if (_itemCtrls.length <= 1) return;
+    final ctrl = _itemCtrls[i];
+    final focus = _focusNodes[i];
+    setState(() {
+      _itemCtrls.removeAt(i);
+      _itemDone.removeAt(i);
+      _focusNodes.removeAt(i);
+    });
+    ctrl.dispose();
+    focus.dispose();
+    final nextIdx = (i > 0) ? i - 1 : 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && nextIdx < _focusNodes.length) {
+        _focusNodes[nextIdx].requestFocus();
+      }
+    });
+  }
+
   void _addRow() {
     final newFocus = FocusNode();
     setState(() {
@@ -1365,11 +1384,26 @@ Future<void> _pickReminder() async {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
+                      child: CallbackShortcuts(
+                        bindings: {
+                          SingleActivator(LogicalKeyboardKey.backspace): () {
+                            if (_itemCtrls[i].text.isEmpty) _removeRow(i);
+                          },
+                        },
+                        child: TextField(
                         controller: _itemCtrls[i],
                         focusNode: _focusNodes[i],
                         textInputAction: TextInputAction.next,
-                        onEditingComplete: () {},
+                        maxLines: null,
+                        onChanged: (val) {
+                          if (val.contains('\n')) {
+                            _itemCtrls[i].text = val.replaceAll('\n', '');
+                            _itemCtrls[i].selection = TextSelection.collapsed(
+                              offset: _itemCtrls[i].text.length,
+                            );
+                            if (_itemCtrls[i].text.trim().isNotEmpty) _addRow();
+                          }
+                        },
                         onSubmitted: (_) { if (_itemCtrls[i].text.trim().isNotEmpty) _addRow(); },
                         style: contentStyle(state.contentFont, size: 14, color: text, height: 1.6),
                         decoration: InputDecoration(
@@ -1377,6 +1411,7 @@ Future<void> _pickReminder() async {
                           hintText: 'Задача...',
                           hintStyle: contentStyle(state.contentFont, size: 14, color: textHint, height: 1.6),
                         ),
+                      ),
                       ),
                     ),
                     // Категория-чип — только когда задача одна
