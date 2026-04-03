@@ -19,6 +19,10 @@ class AppState extends ChangeNotifier {
   String _contentFont = 'dm_sans';
   String get contentFont => _contentFont;
 
+  // Default reminder offset in minutes (how early to notify before event)
+  int _reminderOffsetMinutes = 30;
+  int get reminderOffsetMinutes => _reminderOffsetMinutes;
+
   // View modes: 1=list, 2=grid, 3=compact
   int _notesView = 1;
   int _todosView = 1;
@@ -314,6 +318,7 @@ class AppState extends ChangeNotifier {
     _userName = prefs.getString('userName') ?? '';
     _appFont = prefs.getString('appFont') ?? 'fraunces';
     _contentFont = prefs.getString('contentFont') ?? 'dm_sans';
+    _reminderOffsetMinutes = prefs.getInt('reminderOffsetMinutes') ?? 30;
     _notesView = prefs.getInt('notesView') ?? 1;
     _todosView = prefs.getInt('todosView') ?? 1;
     _eventsView = prefs.getInt('eventsView') ?? 1;
@@ -455,6 +460,7 @@ class AppState extends ChangeNotifier {
     await prefs.setString('userName', _userName);
     await prefs.setString('appFont', _appFont);
     await prefs.setString('contentFont', _contentFont);
+    await prefs.setInt('reminderOffsetMinutes', _reminderOffsetMinutes);
     await prefs.setString('notes', jsonEncode(notes.map((n) => n.toJson()).toList()));
     await prefs.setString('todos', jsonEncode(todos.map((t) => t.toJson()).toList()));
     await prefs.setString('events', jsonEncode(events.map((e) => e.toJson()).toList()));
@@ -490,6 +496,11 @@ class AppState extends ChangeNotifier {
 
   void setContentFont(String font) {
     _contentFont = font;
+    _save(); notifyListeners();
+  }
+
+  void setReminderOffset(int minutes) {
+    _reminderOffsetMinutes = minutes;
     _save(); notifyListeners();
   }
 

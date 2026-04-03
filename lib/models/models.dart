@@ -55,6 +55,8 @@ class TodoGroup {
   int colorIndex;
   DateTime? dueDate;
   DateTime? reminderDate;
+  RepeatInterval repeat;
+  int? customDays;
 
   TodoGroup({
     required this.id,
@@ -65,6 +67,8 @@ class TodoGroup {
     this.colorIndex = 0,
     this.dueDate,
     this.reminderDate,
+    this.repeat = RepeatInterval.none,
+    this.customDays,
   })  : items = items ?? [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -80,6 +84,8 @@ class TodoGroup {
     'colorIndex': colorIndex,
     'dueDate': dueDate?.toIso8601String(),
     'reminderDate': reminderDate?.toIso8601String(),
+    'repeat': repeat.index,
+    'customDays': customDays,
   };
 
   factory TodoGroup.fromJson(Map<String, dynamic> j) => TodoGroup(
@@ -91,6 +97,8 @@ class TodoGroup {
     colorIndex: j['colorIndex'] ?? 0,
     dueDate: j['dueDate'] != null ? DateTime.tryParse(j['dueDate']) : null,
     reminderDate: j['reminderDate'] != null ? DateTime.tryParse(j['reminderDate']) : null,
+    repeat: RepeatInterval.values[j['repeat'] ?? 0],
+    customDays: j['customDays'],
   );
 }
 

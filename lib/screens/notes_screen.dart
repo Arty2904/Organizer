@@ -519,15 +519,15 @@ class _NoteCardState extends State<_NoteCard> {
 
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final Color cardBg = note.colorIndex > 0 && note.colorIndex <= kNoteColors.length
+    final bool hasCustomColor = note.colorIndex > 0;
+    final Color cardBg = hasCustomColor && note.colorIndex <= kNoteColors.length
         ? kNoteColors[note.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
-    final bool hasCustomColor = note.colorIndex > 0;
     final textColor = hasCustomColor
-        ? const Color(0xFF2A1F14)
+        ? AppColors.textColorFor(cardBg)
         : (isDark ? AppColors.darkText : AppColors.lightText);
     final textSec = hasCustomColor
-        ? AppColors.lightTextDate
+        ? AppColors.textSecColorFor(cardBg)
         : (isDark ? AppColors.darkTextDate : AppColors.lightTextDate);
     final catColor = state.folderColor(note.category);
 
@@ -729,15 +729,15 @@ class _GridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color cardBg = note.colorIndex > 0 && note.colorIndex <= kNoteColors.length
+    final bool hasCustomColor = note.colorIndex > 0;
+    final Color cardBg = hasCustomColor && note.colorIndex <= kNoteColors.length
         ? kNoteColors[note.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
-    final bool hasCustomColor = note.colorIndex > 0;
     final textColor = hasCustomColor
-        ? const Color(0xFF2A1F14)
+        ? AppColors.textColorFor(cardBg)
         : (isDark ? AppColors.darkText : AppColors.lightText);
     final textSec = hasCustomColor
-        ? AppColors.lightTextDate
+        ? AppColors.textSecColorFor(cardBg)
         : (isDark ? AppColors.darkTextDate : AppColors.lightTextDate);
     final borderColor = hasCustomColor
         ? Colors.transparent
@@ -976,13 +976,20 @@ class _SizedPlaceholderState extends State<_SizedPlaceholder> {
 // 21 preset note background colors
 // Same 21 colors as folder editor palette (sidebar.dart)
 const List<Color> kNoteColors = [
-  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
-  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
-  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
-  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
-  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
-  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
-  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+  // Reds / Pinks — приглушённые тёплые
+  Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
+  // Purples / Blues — десатурированные
+  Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
+  // Cyan / Teal
+  Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
+  // Greens
+  Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
+  // Yellows / Oranges — потеплее, не кислотные
+  Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
+  // Warm oranges / Browns
+  Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
+  // Greys
+  Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
 ];
 
 class NoteEditorScreen extends StatefulWidget {
@@ -1352,10 +1359,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final Color noteBg = _colorIndex > 0 && _colorIndex <= kNoteColors.length
         ? kNoteColors[_colorIndex - 1]
         : (isDark ? AppColors.darkBg2 : AppColors.lightBg2);
-    final text = isDark && _colorIndex == 0 ? AppColors.darkText : const Color(0xFF2A1F14);
-    const textHint = Color(0x6E785028);
-    final textSec = isDark && _colorIndex == 0 ? AppColors.darkTextDate : AppColors.lightTextDate;
-    final divider = isDark && _colorIndex == 0 ? AppColors.darkDivider : const Color(0x33785028);
+    final text = _colorIndex == 0
+        ? (isDark ? AppColors.darkText : AppColors.lightText)
+        : AppColors.textColorFor(noteBg);
+    final textHint = _colorIndex == 0
+        ? (isDark ? AppColors.darkTextDate : const Color(0x6E785028))
+        : AppColors.textSecColorFor(noteBg);
+    final textSec = _colorIndex == 0
+        ? (isDark ? AppColors.darkTextDate : AppColors.lightTextDate)
+        : AppColors.textSecColorFor(noteBg);
+    final divider = _colorIndex == 0
+        ? (isDark ? AppColors.darkDivider : const Color(0x33785028))
+        : AppColors.dividerColorFor(noteBg);
     final charCount = _bodyCtrl.text.length;
     final catColor = state.folderColor(_category);
     final editDate = widget.note?.createdAt ?? DateTime.now();

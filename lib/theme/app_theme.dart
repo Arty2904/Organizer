@@ -157,6 +157,26 @@ class AppColors {
     };
     return map[category] ?? const Color(0x40FFFFFF);
   }
+
+  /// Returns black or white depending on background luminance.
+  /// Use for text on coloured note/todo card backgrounds.
+  static Color textColorFor(Color bg) {
+    return bg.computeLuminance() > 0.35 ? const Color(0xFF1A1208) : Colors.white;
+  }
+
+  /// Muted secondary text on a coloured card background.
+  static Color textSecColorFor(Color bg) {
+    return bg.computeLuminance() > 0.35
+        ? const Color(0x99241406)
+        : Colors.white.withValues(alpha: 0.65);
+  }
+
+  /// Divider/checkbox border on a coloured card background.
+  static Color dividerColorFor(Color bg) {
+    return bg.computeLuminance() > 0.35
+        ? const Color(0x33241406)
+        : Colors.white.withValues(alpha: 0.25);
+  }
 }
 
 ThemeData buildTheme(bool dark, {String font = 'fraunces'}) {

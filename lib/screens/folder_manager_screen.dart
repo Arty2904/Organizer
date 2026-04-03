@@ -6,13 +6,13 @@ import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
 
 const _kPaletteColors = [
-  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
-  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
-  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
-  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
-  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
-  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
-  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+  Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
+  Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
+  Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
+  Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
+  Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
+  Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
+  Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
 ];
 
 class FolderManagerScreen extends StatefulWidget {
@@ -61,6 +61,7 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
 
     return Scaffold(
       backgroundColor: bg,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: bg, surfaceTintColor: Colors.transparent,
         title: Text('Папки', style: appTitleStyle(context.watch<AppState>().appFont, size: 15, weight: FontWeight.w600, color: text)),
@@ -73,6 +74,21 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
           tabs: _tabLabels.map((l) => Tab(text: l)).toList(),
         ),
       ),
+      floatingActionButton: SizedBox(
+        width: 44, height: 44,
+        child: FloatingActionButton(
+          heroTag: 'folder_fab',
+          onPressed: () {
+            final ui = _tabCtrl.index;
+            final appTab = _appTab(ui);
+            _showAddFolderDialog(context, s, appTab, bg, bg2, text, sec, div, acc, dark);
+          },
+          backgroundColor: acc,
+          elevation: 6,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+        ),
+      ),
       body: TabBarView(
         controller: _tabCtrl,
         children: List.generate(3, (ui) => _FolderTab(
@@ -83,6 +99,46 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
       ),
     );
   }
+}
+
+void _showAddFolderDialog(BuildContext ctx, AppState state, int appTab,
+    Color bg, Color bg2, Color text, Color sec, Color div, Color acc, bool isDark) {
+  final ctrl = TextEditingController();
+  showDialog(
+    context: ctx,
+    builder: (_) => AlertDialog(
+      backgroundColor: bg,
+      title: Text('Новая папка', style: appTitleStyle(state.appFont, size: 17, weight: FontWeight.w600, color: text)),
+      content: TextField(
+        controller: ctrl, autofocus: true,
+        style: GoogleFonts.dmSans(fontSize: 14, color: text),
+        decoration: InputDecoration(
+          hintText: 'Название...',
+          hintStyle: GoogleFonts.dmSans(fontSize: 14, color: sec),
+          filled: true,
+          fillColor: isDark ? AppColors.darkSearchBg : AppColors.lightSearchBg,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+        onSubmitted: (v) {
+          state.addFolder(appTab, v);
+          Navigator.pop(ctx);
+        },
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx),
+            child: Text('Отмена', style: GoogleFonts.dmSans(color: sec))),
+        TextButton(
+          onPressed: () {
+            state.addFolder(appTab, ctrl.text);
+            Navigator.pop(ctx);
+          },
+          child: Text('Добавить', style: GoogleFonts.dmSans(
+            color: acc, fontWeight: FontWeight.w700)),
+        ),
+      ],
+    ),
+  );
 }
 
 class _FolderTab extends StatefulWidget {
@@ -197,45 +253,6 @@ class _FolderTabState extends State<_FolderTab> {
     );
   }
 
-  void _showAdd(BuildContext ctx) {
-    final ctrl = TextEditingController();
-    showDialog(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        backgroundColor: widget.bg,
-        title: Text('Новая папка', style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: widget.text)),
-        content: TextField(
-          controller: ctrl, autofocus: true,
-          style: GoogleFonts.dmSans(fontSize: 14, color: widget.text),
-          decoration: InputDecoration(
-            hintText: 'Название...',
-            hintStyle: GoogleFonts.dmSans(fontSize: 14, color: widget.sec),
-            filled: true,
-            fillColor: widget.isDark ? AppColors.darkSearchBg : AppColors.lightSearchBg,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          ),
-          onSubmitted: (v) {
-            widget.state.addFolder(widget.appTab, v);
-            Navigator.pop(ctx);
-          },
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-              child: Text('Отмена', style: GoogleFonts.dmSans(color: widget.sec))),
-          TextButton(
-            onPressed: () {
-              widget.state.addFolder(widget.appTab, ctrl.text);
-              Navigator.pop(ctx);
-            },
-            child: Text('Добавить', style: GoogleFonts.dmSans(
-              color: widget.acc, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<bool> _confirmDelete(BuildContext ctx, String name) async {
     final result = await showDialog<bool>(
       context: ctx,
@@ -297,7 +314,7 @@ class _FolderTabState extends State<_FolderTab> {
               ? Center(child: Text('Нет папок',
                   style: GoogleFonts.dmSans(fontSize: 14, color: widget.sec)))
               : ReorderableListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                   itemCount: widget.fullOrder.length,
                   onReorder: (o, n) => widget.state.reorderFilterItem(widget.appTab, o, n),
                   proxyDecorator: (child, _, __) =>
@@ -436,27 +453,7 @@ class _FolderTabState extends State<_FolderTab> {
                   },
                 ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: GestureDetector(
-            onTap: () => _showAdd(context),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                  color: widget.acc, borderRadius: BorderRadius.circular(14)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Новая папка', style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                ],
-              ),
-            ),
-          ),
-        ),
+
       ],
     );
   }

@@ -91,6 +91,7 @@ class _AppSidebarState extends State<AppSidebar> {
     for (final s in sections) {
       allKeys.add('__sec_${s.label}');
       for (final f in s.folders) allKeys.add('${s.label}__$f');
+      allKeys.add('${s.label}____uncategorized');
     }
 
     return Drawer(
@@ -261,14 +262,38 @@ class _AppSidebarState extends State<AppSidebar> {
                         }),
 
                         if (uncategorized.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(28, 4, 16, 2),
-                            child: Text('— без папки', style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
-                          ),
-                          ...uncategorized.map((item) => _ItemTile(
-                            item: item, isDark: isDark, text: text, textSec: textSec,
-                            onTap: () => _openItem(context, state, section.tab, item),
-                          )),
+                          () {
+                            final uKey = '${section.label}____uncategorized';
+                            final uCollapsed = _collapsed.contains(uKey);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _toggleFolder(uKey),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(28, 3, 16, 3),
+                                    child: Row(children: [
+                                      Icon(
+                                        uCollapsed ? Icons.chevron_right_rounded : Icons.expand_more_rounded,
+                                        size: 16, color: textSec,
+                                      ),
+                                      const SizedBox(width: 7),
+                                      Expanded(child: Text('без папки', style: GoogleFonts.dmSans(
+                                        fontSize: 12, fontWeight: FontWeight.w600,
+                                        color: uCollapsed ? text : textSec,
+                                      ))),
+                                      Text('${uncategorized.length}', style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
+                                    ]),
+                                  ),
+                                ),
+                                if (!uCollapsed)
+                                  ...uncategorized.map((item) => _ItemTile(
+                                    item: item, isDark: isDark, text: text, textSec: textSec,
+                                    onTap: () => _openItem(context, state, section.tab, item),
+                                  )),
+                              ],
+                            );
+                          }(),
                         ],
                       ],
 
@@ -364,9 +389,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   OverlayEntry? _fontOverlay;
   OverlayEntry? _contentFontOverlay;
   OverlayEntry? _themeOverlay;
+  OverlayEntry? _reminderOverlay;
   final LayerLink _fontLink = LayerLink();
   final LayerLink _contentFontLink = LayerLink();
   final LayerLink _themeLink = LayerLink();
+  final LayerLink _reminderLink = LayerLink();
 
   @override
   void initState() {
@@ -389,6 +416,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fontOverlay?.remove(); _fontOverlay = null;
     _contentFontOverlay?.remove(); _contentFontOverlay = null;
     _themeOverlay?.remove(); _themeOverlay = null;
+    _reminderOverlay?.remove(); _reminderOverlay = null;
   }
 
   void _showFontDropdown(BuildContext ctx, AppState state) {
@@ -572,6 +600,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {});
   }
 
+  String _reminderLabel(int minutes) {
+    switch (minutes) {
+      case 5:     return 'За 5 минут';
+      case 10:    return 'За 10 минут';
+      case 15:    return 'За 15 минут';
+      case 30:    return 'За 30 минут';
+      case 60:    return 'За час';
+      case 1440:  return 'За день';
+      case 2880:  return 'За 2 дня';
+      case 10080: return 'За неделю';
+      default:    return 'За $minutes минут';
+    }
+  }
+
+  void _showReminderDropdown(BuildContext ctx, AppState state) {
+    _closeOverlays();
+    final isDark = state.darkMode;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    const options = [
+      (5,    'За 5 минут'),
+      (10,   'За 10 минут'),
+      (15,   'За 15 минут'),
+      (30,   'За 30 минут'),
+      (60,   'За час'),
+      (1440, 'За день'),
+      (2880, 'За 2 дня'),
+      (10080,'За неделю'),
+    ];
+
+    _reminderOverlay = OverlayEntry(builder: (_) => GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _closeOverlays,
+      child: Stack(children: [
+        Positioned.fill(child: Container(color: Colors.transparent)),
+        CompositedTransformFollower(
+          link: _reminderLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomLeft,
+          followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 4),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: bg, borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: divider, width: 0.5),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: options.map((o) {
+                  final sel = state.reminderOffsetMinutes == o.$1;
+                  return GestureDetector(
+                    onTap: () { state.setReminderOffset(o.$1); _closeOverlays(); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(o.$2, style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                          color: sel ? AppColors.terracotta : text,
+                        ))),
+                        if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
+                      ]),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    ));
+    Overlay.of(ctx).insert(_reminderOverlay!);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -692,6 +805,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   )),
 
+                  const SizedBox(height: 20),
+
+                  // ── Напоминания ──
+                  _Section(
+                    title: 'НАПОМИНАНИЯ',
+                    tooltip: 'За сколько до начала события приходит уведомление на телефон',
+                    child: CompositedTransformTarget(
+                      link: _reminderLink,
+                      child: GestureDetector(
+                        onTap: () => _showReminderDropdown(context, state),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
+                          child: Row(children: [
+                            Icon(Icons.notifications_none_rounded, size: 16, color: AppColors.terracotta),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(
+                              _reminderLabel(state.reminderOffsetMinutes),
+                              style: GoogleFonts.dmSans(fontSize: 14, color: text),
+                            )),
+                            Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 16),
                 ],
               ),
@@ -739,16 +879,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _Section extends StatelessWidget {
   final String title;
+  final String? tooltip;
   final Widget child;
-  const _Section({required this.title, required this.child});
+  const _Section({required this.title, required this.child, this.tooltip});
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: GoogleFonts.dmSans(
-        fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2,
-        color: AppColors.terracotta.withValues(alpha: 0.8),
-      )),
+      Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        Text(title, style: GoogleFonts.dmSans(
+          fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2,
+          color: AppColors.terracotta.withValues(alpha: 0.8),
+        )),
+        if (tooltip != null) ...[
+          const SizedBox(width: 5),
+          Tooltip(
+            message: tooltip!,
+            preferBelow: false,
+            triggerMode: TooltipTriggerMode.tap,
+            decoration: BoxDecoration(
+              color: AppColors.terracotta.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            textStyle: GoogleFonts.dmSans(fontSize: 11, color: Colors.white, height: 1.5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Icon(
+              Icons.info_outline_rounded,
+              size: 13,
+              color: AppColors.terracotta.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ]),
       const SizedBox(height: 8),
       child,
     ]);

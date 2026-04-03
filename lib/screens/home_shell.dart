@@ -101,6 +101,7 @@ class _HomeShellState extends State<HomeShell> {
             value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
             child: Scaffold(
               key: _scaffoldKey,
+              resizeToAvoidBottomInset: false,
               backgroundColor: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
               drawer: const AppSidebar(),
               appBar: AppBar(
@@ -180,7 +181,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ),
               ),
-              floatingActionButton: (tab != 0 && !inSelect)
+              floatingActionButton: (!inSelect)
                   ? SizedBox(
                       width: 44, height: 44,
                       child: FloatingActionButton(
@@ -219,6 +220,10 @@ class _HomeShellState extends State<HomeShell> {
     final eventsInit = state.eventsFilter == 'Все' ? '' : state.eventsFilter;
 
     switch (state.currentTab) {
+      case 0:
+        showDialog(context: context, barrierColor: Colors.black.withValues(alpha: 0.4),
+            builder: (_) => EventEditorDialog());
+        break;
       case 1:
         showDialog(context: context, barrierColor: Colors.black.withValues(alpha: 0.4),
             builder: (_) => EventEditorDialog(initialCategory: eventsInit));
@@ -561,13 +566,13 @@ class _BulkActionBar extends StatelessWidget {
     final dividerCol = isDarkL ? AppColors.darkDivider : AppColors.lightDivider;
 
     const colors = [
-      Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
-      Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
-      Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
-      Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
-      Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
-      Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
-      Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+      Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
+      Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
+      Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
+      Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
+      Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
+      Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
+      Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
     ];
 
     void doColor(int idx) {

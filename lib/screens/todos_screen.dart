@@ -11,13 +11,20 @@ import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 
 const List<Color> kTodoColors = [
-  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
-  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
-  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
-  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
-  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
-  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
-  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+  // Reds / Pinks — приглушённые тёплые
+  Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
+  // Purples / Blues — десатурированные
+  Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
+  // Cyan / Teal
+  Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
+  // Greens
+  Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
+  // Yellows / Oranges — потеплее, не кислотные
+  Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
+  // Warm oranges / Browns
+  Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
+  // Greys
+  Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
 ];
 
 
@@ -663,9 +670,9 @@ class _TodoCardState extends State<_TodoCard> {
     final Color cardBg = hasColor
         ? kTodoColors[group.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
-    final textColor = hasColor ? const Color(0xFF2A1F14) : (isDark ? AppColors.darkText : AppColors.lightText);
-    final textSec = hasColor ? AppColors.lightTextDate : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
-    final divider = hasColor ? const Color(0x33785028) : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
+    final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
+    final divider = hasColor ? AppColors.dividerColorFor(cardBg) : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
     final catColor = state.folderColor(group.category);
 
     // ── Compact view (view 3) — expandable rows ──
@@ -976,6 +983,12 @@ class _TodoCardState extends State<_TodoCard> {
                   isDark: isDark,
                 ),
               ),
+            if (group.repeat != RepeatInterval.none)
+              Positioned(
+                bottom: view == 1 && group.items.length > 3 ? 20 : 10,
+                right: view == 1 && group.items.length > 3 ? 28 : 10,
+                child: Icon(Icons.repeat_rounded, size: 13, color: textSec),
+              ),
           ],
         ),
       ),
@@ -1061,6 +1074,10 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
   OverlayEntry? _overlayEntry;
   DateTime? _dueDate;
   DateTime? _reminderDate;
+  RepeatInterval _repeat = RepeatInterval.none;
+  int? _customDays;
+  final TextEditingController _customDaysCtrl = TextEditingController();
+  final FocusNode _customDaysFocus = FocusNode();
   final ScrollController _listScrollCtrl = ScrollController();
 
   @override
@@ -1074,6 +1091,9 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     _focusNodes.addAll(List.generate(_itemCtrls.length, (_) => FocusNode()));
     _dueDate = widget.group?.dueDate;
     _reminderDate = widget.group?.reminderDate;
+    _repeat = widget.group?.repeat ?? RepeatInterval.none;
+    _customDays = widget.group?.customDays;
+    if (_customDays != null) _customDaysCtrl.text = _customDays.toString();
     if (widget.group == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
@@ -1174,6 +1194,8 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _nameCtrl.dispose();
+    _customDaysCtrl.dispose();
+    _customDaysFocus.dispose();
     _listScrollCtrl.dispose();
     for (var c in _itemCtrls) {
       c.dispose();
@@ -1236,6 +1258,172 @@ Future<void> _pickReminder() async {
     if (result != null && mounted) setState(() => _reminderDate = result);
   }
 
+  String get _repeatLabel {
+    switch (_repeat) {
+      case RepeatInterval.none: return 'Не повторять';
+      case RepeatInterval.daily: return 'Каждый день';
+      case RepeatInterval.weekly: return 'Каждую неделю';
+      case RepeatInterval.monthly: return 'Каждый месяц';
+      case RepeatInterval.yearly: return 'Каждый год';
+      case RepeatInterval.custom:
+        final d = _customDays ?? int.tryParse(_customDaysCtrl.text);
+        return d != null ? 'Через $d дней' : 'Через N дней';
+    }
+  }
+
+  void _showRepeatPicker() {
+    final isDark = context.read<AppState>().darkMode;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          const options = [
+            RepeatInterval.none,
+            RepeatInterval.daily,
+            RepeatInterval.weekly,
+            RepeatInterval.monthly,
+            RepeatInterval.yearly,
+            RepeatInterval.custom,
+          ];
+          const staticLabels = {
+            RepeatInterval.none:    'Не повторять',
+            RepeatInterval.daily:   'Каждый день',
+            RepeatInterval.weekly:  'Каждую неделю',
+            RepeatInterval.monthly: 'Каждый месяц',
+            RepeatInterval.yearly:  'Каждый год',
+          };
+
+          return Dialog(
+            backgroundColor: bg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                    child: Text('Повторять',
+                        style: appTitleStyle(context.read<AppState>().appFont,
+                            size: 16, weight: FontWeight.w600, color: text)),
+                  ),
+                  Divider(color: divider, height: 1),
+                  ...options.map((opt) {
+                    final sel = _repeat == opt;
+                    final isCustom = opt == RepeatInterval.custom;
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _repeat = opt);
+                        setDlgState(() {});
+                        if (isCustom) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _customDaysFocus.requestFocus();
+                            _customDaysCtrl.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _customDaysCtrl.text.length,
+                            );
+                          });
+                        } else {
+                          Navigator.pop(ctx);
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+                        color: Colors.transparent,
+                        child: Row(children: [
+                          if (!isCustom)
+                            Expanded(child: Text(staticLabels[opt]!,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: sel ? AppColors.terracotta : text,
+                                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                              )))
+                          else
+                            Expanded(child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Через ', style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  color: sel ? AppColors.terracotta : text,
+                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                                )),
+                                IntrinsicWidth(
+                                  child: TextField(
+                                    controller: _customDaysCtrl,
+                                    focusNode: _customDaysFocus,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.terracotta,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'N',
+                                      hintStyle: GoogleFonts.dmSans(
+                                        fontSize: 14, color: textSec),
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 2),
+                                      enabledBorder: UnderlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: AppColors.terracotta.withValues(alpha: 0.5),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      focusedBorder: UnderlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: AppColors.terracotta, width: 1.5),
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      setState(() => _repeat = RepeatInterval.custom);
+                                      setDlgState(() {});
+                                    },
+                                    onChanged: (v) {
+                                      setState(() => _customDays = int.tryParse(v));
+                                      setDlgState(() {});
+                                    },
+                                    onSubmitted: (_) => Navigator.pop(ctx),
+                                  ),
+                                ),
+                                Text(' дней', style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  color: sel ? AppColors.terracotta : text,
+                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                                )),
+                              ],
+                            )),
+                          // Checkmark — for custom show only when number entered
+                          if (sel && (!isCustom || (_customDaysCtrl.text.isNotEmpty && int.tryParse(_customDaysCtrl.text) != null)))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Icon(Icons.check_rounded,
+                                  size: 16, color: AppColors.terracotta),
+                            ),
+                        ]),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ).then((_) {
+      setState(() => _customDays = int.tryParse(_customDaysCtrl.text));
+    });
+  }
+
   void _save() {
     final state = context.read<AppState>();
     final validItems = _itemCtrls.asMap().entries
@@ -1248,6 +1436,8 @@ Future<void> _pickReminder() async {
       widget.group!.items = validItems;
       widget.group!.dueDate = _dueDate;
       widget.group!.reminderDate = _reminderDate;
+      widget.group!.repeat = _repeat;
+      widget.group!.customDays = _repeat == RepeatInterval.custom ? int.tryParse(_customDaysCtrl.text) : null;
       state.updateTodo(widget.group!);
     } else {
       state.addTodo(TodoGroup(
@@ -1257,6 +1447,8 @@ Future<void> _pickReminder() async {
         items: validItems,
         dueDate: _dueDate,
         reminderDate: _reminderDate,
+        repeat: _repeat,
+        customDays: _repeat == RepeatInterval.custom ? int.tryParse(_customDaysCtrl.text) : null,
       ));
     }
     Navigator.pop(context);
@@ -1457,6 +1649,29 @@ Future<void> _pickReminder() async {
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
                           color: _reminderDate != null ? AppColors.terracotta : textSec,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Повтор
+                GestureDetector(
+                  onTap: _showRepeatPicker,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.repeat_rounded,
+                        size: 18,
+                        color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _repeat != RepeatInterval.none ? _repeatLabel : 'Повтор',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
                         ),
                       ),
                     ],

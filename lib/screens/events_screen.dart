@@ -10,13 +10,20 @@ import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 
 const List<Color> kEventColors = [
-  Color(0xFFE53935), Color(0xFFE91E63), Color(0xFF9C27B0),
-  Color(0xFF673AB7), Color(0xFF3F51B5), Color(0xFF2196F3),
-  Color(0xFF03A9F4), Color(0xFF00BCD4), Color(0xFF009688),
-  Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFCDDC39),
-  Color(0xFFFFEB3B), Color(0xFFFFC107), Color(0xFFFF9800),
-  Color(0xFFFF5722), Color(0xFFD07840), Color(0xFF795548),
-  Color(0xFF607D8B), Color(0xFF9E9E9E), Color(0xFF37474F),
+  // Reds / Pinks — приглушённые тёплые
+  Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
+  // Purples / Blues — десатурированные
+  Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
+  // Cyan / Teal
+  Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
+  // Greens
+  Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
+  // Yellows / Oranges — потеплее, не кислотные
+  Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
+  // Warm oranges / Browns
+  Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
+  // Greys
+  Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
 ];
 
 
@@ -476,8 +483,8 @@ class _EventGridCard extends StatelessWidget {
         : hasColor
             ? kEventColors[event.colorIndex - 1]
             : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
-    final textColor = hasColor ? const Color(0xFF2A1F14) : (isDark ? AppColors.darkText : AppColors.lightText);
-    final textSec = hasColor ? AppColors.lightTextDate : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
+    final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
     final borderColor = hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder);
 
     return GestureDetector(
@@ -841,9 +848,9 @@ class _EventCardState extends State<_EventCard> {
     final Color cardBg = hasColor
         ? kEventColors[event.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
-    final textColor = hasColor ? const Color(0xFF2A1F14) : (isDark ? AppColors.darkText : AppColors.lightText);
-    final textSec = hasColor ? AppColors.lightTextDate : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
-    final divider = hasColor ? const Color(0x33785028) : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
+    final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
+    final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
+    final divider = hasColor ? AppColors.dividerColorFor(cardBg) : (isDark ? AppColors.darkDivider : AppColors.lightDivider);
     final catColor = state.folderColor(event.category);
     final maxTasks = view == 2 ? 3 : event.tasks.length;
     final tasks = event.tasks.take(maxTasks).toList();
@@ -1053,6 +1060,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
   RepeatInterval _repeat = RepeatInterval.none;
   int? _customDays;
   final _customDaysCtrl = TextEditingController();
+  final _customDaysFocus = FocusNode();
   bool _tagMenuOpen = false;
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
@@ -1077,6 +1085,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     _customDaysCtrl.dispose();
+    _customDaysFocus.dispose();
     super.dispose();
   }
 
@@ -1190,116 +1199,159 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
-    final labels = {
-      RepeatInterval.none: 'Не повторять',
-      RepeatInterval.daily: 'Каждый день',
-      RepeatInterval.weekly: 'Каждую неделю',
-      RepeatInterval.monthly: 'Каждый месяц',
-      RepeatInterval.yearly: 'Каждый год',
-      RepeatInterval.custom: 'Через N дней',
-    };
-
+    // FocusNode for inline custom days field — auto-focuses when custom selected
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.3),
-      builder: (ctx) => Dialog(
-        backgroundColor: bg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Text('Повторять', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
-              ),
-              Divider(color: divider, height: 1),
-              ...labels.entries.map((e) {
-                final sel = _repeat == e.key;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _repeat = e.key);
-                    Navigator.pop(ctx);
-                    if (e.key == RepeatInterval.custom) _showCustomDaysPicker();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    color: Colors.transparent,
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(e.value, style: GoogleFonts.dmSans(
-                          fontSize: 14, color: sel ? AppColors.terracotta : text,
-                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                        ))),
-                        if (sel) Icon(Icons.check_rounded, size: 16, color: AppColors.terracotta),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          const options = [
+            RepeatInterval.none,
+            RepeatInterval.daily,
+            RepeatInterval.weekly,
+            RepeatInterval.monthly,
+            RepeatInterval.yearly,
+            RepeatInterval.custom,
+          ];
+          const staticLabels = {
+            RepeatInterval.none:    'Не повторять',
+            RepeatInterval.daily:   'Каждый день',
+            RepeatInterval.weekly:  'Каждую неделю',
+            RepeatInterval.monthly: 'Каждый месяц',
+            RepeatInterval.yearly:  'Каждый год',
+          };
 
-  void _showCustomDaysPicker() {
-    final isDark = context.read<AppState>().darkMode;
-    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final text = isDark ? AppColors.darkText : AppColors.lightText;
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.3),
-      builder: (ctx) => Dialog(
-        backgroundColor: bg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Через сколько дней?', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _customDaysCtrl,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                style: GoogleFonts.dmSans(fontSize: 20, color: text),
-                decoration: InputDecoration(
-                  suffixText: 'дней',
-                  suffixStyle: GoogleFonts.dmSans(fontSize: 14, color: text),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _customDays = int.tryParse(_customDaysCtrl.text));
-                    Navigator.pop(ctx);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.terracotta,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text('Готово', style: GoogleFonts.dmSans(
-                      fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white,
-                    )),
+          return Dialog(
+            backgroundColor: bg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                    child: Text('Повторять',
+                        style: appTitleStyle(context.read<AppState>().appFont,
+                            size: 16, weight: FontWeight.w600, color: text)),
                   ),
-                ),
+                  Divider(color: divider, height: 1),
+                  ...options.map((opt) {
+                    final sel = _repeat == opt;
+                    final isCustom = opt == RepeatInterval.custom;
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _repeat = opt);
+                        setDlgState(() {});
+                        if (isCustom) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _customDaysFocus.requestFocus();
+                            _customDaysCtrl.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _customDaysCtrl.text.length,
+                            );
+                          });
+                        } else {
+                          Navigator.pop(ctx);
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+                        color: Colors.transparent,
+                        child: Row(children: [
+                          // Label / inline input for custom
+                          if (!isCustom)
+                            Expanded(child: Text(staticLabels[opt]!,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                color: sel ? AppColors.terracotta : text,
+                                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                              )))
+                          else
+                            Expanded(child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Через ', style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  color: sel ? AppColors.terracotta : text,
+                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                                )),
+                                // Inline number field
+                                IntrinsicWidth(
+                                  child: TextField(
+                                    controller: _customDaysCtrl,
+                                    focusNode: _customDaysFocus,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.terracotta,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'N',
+                                      hintStyle: GoogleFonts.dmSans(
+                                        fontSize: 14,
+                                        color: textSec,
+                                      ),
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 2),
+                                      enabledBorder: UnderlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: AppColors.terracotta.withValues(alpha: 0.5),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      focusedBorder: UnderlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: AppColors.terracotta,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      setState(() => _repeat = RepeatInterval.custom);
+                                      setDlgState(() {});
+                                    },
+                                    onChanged: (v) {
+                                      setState(() =>
+                                          _customDays = int.tryParse(v));
+                                      setDlgState(() {});
+                                    },
+                                    onSubmitted: (_) => Navigator.pop(ctx),
+                                  ),
+                                ),
+                                Text(' дней', style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  color: sel ? AppColors.terracotta : text,
+                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                                )),
+                              ],
+                            )),
+                          // Checkmark — for custom show only when number entered
+                          if (sel && (!isCustom || (_customDaysCtrl.text.isNotEmpty && int.tryParse(_customDaysCtrl.text) != null)))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Icon(Icons.check_rounded,
+                                  size: 16, color: AppColors.terracotta),
+                            ),
+                        ]),
+                      ),
+                    );
+                  }),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
-    );
+    ).then((_) {
+      // Sync _customDays from controller on close
+      setState(() => _customDays = int.tryParse(_customDaysCtrl.text));
+    });
   }
 
   String get _repeatLabel {
