@@ -22,12 +22,6 @@ const List<Color> kCardColors = [
   Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
 ];
 
-// Backward-compat aliases so existing references compile without change.
-// TODO: migrate call-sites to kCardColors and remove these.
-const List<Color> kNoteColors  = kCardColors;
-const List<Color> kTodoColors  = kCardColors;
-const List<Color> kEventColors = kCardColors;
-
 /// Returns the card background [Color] for [colorIndex].
 /// [colorIndex] == 0 returns null (caller should use their default bg).
 Color? cardColorFor(int colorIndex) {

@@ -295,9 +295,9 @@ class _EventGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
+    final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kCardColors.length;
     final Color cardBg = hasColor
-            ? kEventColors[event.colorIndex - 1]
+            ? kCardColors[event.colorIndex - 1]
             : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
     final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
     final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
@@ -436,9 +436,9 @@ class _EventCardState extends State<_EventCard> {
 
     final state = context.watch<AppState>();
     final isDark = widget.isDarkOverride ?? state.darkMode;
-    final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
+    final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kCardColors.length;
     final Color cardBg = hasColor
-        ? kEventColors[event.colorIndex - 1]
+        ? kCardColors[event.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
     final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
     final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);

@@ -142,9 +142,9 @@ Accents: `AppColors.terracotta` (dark), `AppColors.terracottaLight` (light)
 
 ### Card color palettes — single source of truth in `card_colors.dart`
 All palettes are unified under `kCardColors` (21 muted warm tones) in `theme/card_colors.dart`.
-`kNoteColors`, `kTodoColors`, `kEventColors` are backward-compat aliases pointing to the same list — migrate call-sites to `kCardColors` and remove aliases when convenient.
+`kNoteColors`, `kTodoColors`, `kEventColors` aliases have been removed — use `kCardColors` everywhere.
 `cardColorFor(int colorIndex)` returns the `Color` for a given index (null for index 0).
-No separate per-screen palette lists exist anymore; do not re-introduce them.
+No separate per-screen palette lists exist; do not re-introduce them.
 
 ### Text on colored cards — CRITICAL
 When `colorIndex > 0`, never hardcode text/divider colors. Always:
@@ -175,7 +175,7 @@ Never use `AppColors.lightTextDate` as fallback on colored cards.
 
 ### _Section widget
 Accepts optional `tooltip` parameter. Shows tappable info icon next to title:
-```dart
+```
 _Section(title: 'НАПОМИНАНИЯ', tooltip: 'За сколько до начала события...', child: ...)
 ```
 Tooltip strings must be single-line — no literal newlines in single-quoted strings.
@@ -304,7 +304,7 @@ All grid cards are **148px tall** across all three entities. This eliminates col
 All three screens use `DraggableListCard` from `common_widgets.dart` (not `ReorderableListView`).
 Each screen State holds `final ValueNotifier<String?> _listDragState = ValueNotifier(null)` — disposed in `dispose()`.
 Pattern:
-```dart
+```
 if (sort != 'manual') return swipableOrPlain;
 return DraggableListCard(
   key: ValueKey(item.id),
@@ -317,6 +317,8 @@ return DraggableListCard(
 
 ### Todo default name on save
 When `_nameCtrl` is empty: `validItems.length == 1 ? 'Задача' : 'Список'`.
+
+## Key Conventions
 - Colors always from AppColors — never hardcoded hex
 - `context.watch<AppState>()` for reactive reads, `context.read<AppState>()` in callbacks/initState
 - IndexedStack — all 4 tabs always mounted

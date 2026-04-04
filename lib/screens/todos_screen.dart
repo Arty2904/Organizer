@@ -310,9 +310,9 @@ class _TodoCardState extends State<_TodoCard> {
 
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
-    final bool hasColor = group.colorIndex > 0 && group.colorIndex <= kTodoColors.length;
+    final bool hasColor = group.colorIndex > 0 && group.colorIndex <= kCardColors.length;
     final Color cardBg = hasColor
-        ? kTodoColors[group.colorIndex - 1]
+        ? kCardColors[group.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
     final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
     final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);

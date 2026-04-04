@@ -172,7 +172,6 @@ class _NoteGrid extends StatelessWidget {
   final void Function(Note) onOpenEditor;
 
   const _NoteGrid({
-    super.key,
     required this.notes,
     required this.state,
     required this.showTag,
@@ -354,8 +353,8 @@ class _NoteCardState extends State<_NoteCard> {
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
     final bool hasCustomColor = note.colorIndex > 0;
-    final Color cardBg = hasCustomColor && note.colorIndex <= kNoteColors.length
-        ? kNoteColors[note.colorIndex - 1]
+    final Color cardBg = hasCustomColor && note.colorIndex <= kCardColors.length
+        ? kCardColors[note.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
     final textColor = hasCustomColor
         ? AppColors.textColorFor(cardBg)
@@ -564,8 +563,8 @@ class _GridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool hasCustomColor = note.colorIndex > 0;
-    final Color cardBg = hasCustomColor && note.colorIndex <= kNoteColors.length
-        ? kNoteColors[note.colorIndex - 1]
+    final Color cardBg = hasCustomColor && note.colorIndex <= kCardColors.length
+        ? kCardColors[note.colorIndex - 1]
         : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
     final textColor = hasCustomColor
         ? AppColors.textColorFor(cardBg)
@@ -891,8 +890,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final state = context.watch<AppState>();
     final isDark = state.darkMode;
     // Note background: custom color or default
-    final Color noteBg = _colorIndex > 0 && _colorIndex <= kNoteColors.length
-        ? kNoteColors[_colorIndex - 1]
+    final Color noteBg = _colorIndex > 0 && _colorIndex <= kCardColors.length
+        ? kCardColors[_colorIndex - 1]
         : (isDark ? AppColors.darkBg2 : AppColors.lightBg2);
     final text = _colorIndex == 0
         ? (isDark ? AppColors.darkText : AppColors.lightText)
