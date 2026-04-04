@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/card_colors.dart';
 import '../widgets/shared_widgets.dart';
 import '../widgets/selection_state.dart';
 import '../widgets/sidebar.dart';
@@ -565,15 +566,7 @@ class _BulkActionBar extends StatelessWidget {
     final text       = isDarkL ? AppColors.darkText    : AppColors.lightText;
     final dividerCol = isDarkL ? AppColors.darkDivider : AppColors.lightDivider;
 
-    const colors = [
-      Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
-      Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
-      Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
-      Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
-      Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
-      Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
-      Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
-    ];
+    const colors = kCardColors;
 
     void doColor(int idx) {
       final ids = Set<String>.from(selectedIds);

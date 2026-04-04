@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -6,26 +7,9 @@ import '../providers/app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
-import '../widgets/shared_widgets.dart';
+import '../widgets/common_widgets.dart';
 import '../widgets/selection_state.dart';
-
-const List<Color> kEventColors = [
-  // Reds / Pinks — приглушённые тёплые
-  Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
-  // Purples / Blues — десатурированные
-  Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
-  // Cyan / Teal
-  Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
-  // Greens
-  Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
-  // Yellows / Oranges — потеплее, не кислотные
-  Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
-  // Warm oranges / Browns
-  Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
-  // Greys
-  Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
-];
-
+import '../theme/card_colors.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -82,26 +66,17 @@ class _EventsScreenState extends State<EventsScreen> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSearchBar(onChanged: (q) => setState(() => _query = q), hint: 'Поиск событий...'),
-              const SizedBox(height: 10),
-              CategoryFilterRow(
-                categories: state.eventCategories,
-                selected: state.eventsFilter,
-                onSelect: (c) { state.eventsFilter = c; state.refresh(); },
-                colorResolver: state.folderColor,
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
+        ScreenHeader(
+          searchHint: 'Поиск событий...',
+          onSearch: (q) => setState(() => _query = q),
+          categories: state.eventCategories,
+          selectedCategory: state.eventsFilter,
+          onSelectCategory: (c) { state.eventsFilter = c; state.refresh(); },
+          colorResolver: state.folderColor,
         ),
         Expanded(
           child: events.isEmpty
-              ? _emptyState(isDark)
+              ? const EmptyState(icon: Icons.event_outlined, label: 'Нет событий')
               : v == 1
                   ? _listView(context, events, state)
                   : v == 2
@@ -112,94 +87,61 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
-  Widget _emptyState(bool isDark) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.event_outlined, size: 48, color: AppColors.terracotta.withValues(alpha: 0.3)),
-        const SizedBox(height: 12),
-        Text('Нет событий', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-      ],
-    ),
-  );
-
   Widget _listView(BuildContext context, List<AppEvent> events, AppState state) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              GestureDetector(
-                onTap: () => _toggleAll(events),
-                child: Row(
-                  children: [
-                    Icon(
-                      _allExpanded ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
-                      size: 14, color: AppColors.terracotta,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _allExpanded ? 'Свернуть все' : 'Развернуть все',
-                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.terracotta),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        ExpandCollapseBar(allExpanded: _allExpanded, onToggle: () => _toggleAll(events)),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
             itemCount: events.length,
             itemBuilder: (ctx, i) {
-              final card = SelectableCardWrapper(
-                key: ValueKey(events[i].id),
-                itemId: events[i].id,
+              final event = events[i];
+              final inner = SelectableCardWrapper(
+                key: ValueKey(event.id),
+                itemId: event.id,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _EventCard(
-                    event: events[i],
+                    event: event,
                     showTag: state.eventsFilter == 'Все',
                     view: 1,
-                    expanded: _expandedIds.contains(events[i].id),
-                    onToggleExpand: () => _toggleExpand(events[i].id),
+                    expanded: _expandedIds.contains(event.id),
+                    onToggleExpand: () => _toggleExpand(event.id),
                     isDarkOverride: state.darkMode,
-                    onTap: () => _openEditor(context, events[i]),
-                    onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+                    onTap: () => _openEditor(context, event),
+                    onCheckTask: (idx) => state.toggleEventTask(event.id, idx),
                   ),
                 ),
               );
               if (state.eventsSort != 'manual') {
-                return _SwipableCard(
-                  key: ValueKey('sw-ev-${events[i].id}'),
-                  itemKey: ValueKey('del-event-${events[i].id}'),
+                return SwipableCard(
+                  key: ValueKey('sw-ev-${event.id}'),
+                  dismissKey: ValueKey('del-event-${event.id}'),
                   padding: const EdgeInsets.only(bottom: 10),
-                  onDelete: () => state.deleteEvent(events[i].id),
+                  onDelete: () => state.deleteEvent(event.id),
                   child: SelectableCardWrapper(
-                    key: ValueKey('sel-${events[i].id}'),
-                    itemId: events[i].id,
+                    key: ValueKey('sel-${event.id}'),
+                    itemId: event.id,
                     child: _EventCard(
-                      event: events[i],
+                      event: event,
                       showTag: state.eventsFilter == 'Все',
                       view: 1,
-                      expanded: _expandedIds.contains(events[i].id),
-                      onToggleExpand: () => _toggleExpand(events[i].id),
+                      expanded: _expandedIds.contains(event.id),
+                      onToggleExpand: () => _toggleExpand(event.id),
                       isDarkOverride: state.darkMode,
-                      onTap: () => _openEditor(context, events[i]),
-                      onCheckTask: (idx) => state.toggleEventTask(events[i].id, idx),
+                      onTap: () => _openEditor(context, event),
+                      onCheckTask: (idx) => state.toggleEventTask(event.id, idx),
                     ),
                   ),
                 );
               }
-              return _DraggableListCard(
-                key: ValueKey(events[i].id),
-                itemId: events[i].id,
+              return DraggableListCard(
+                key: ValueKey(event.id),
+                itemId: event.id,
                 dragState: _listDragState,
                 onReorder: (f, t) => state.reorderEventById(f, t),
-                child: card,
+                child: inner,
               );
             },
           ),
@@ -235,7 +177,7 @@ class _EventsScreenState extends State<EventsScreen> {
           ),
         );
         if (state.eventsSort != 'manual') return card;
-        return _DraggableListCard(
+        return DraggableListCard(
           key: ValueKey(events[i].id),
           itemId: events[i].id,
           dragState: _listDragState,
@@ -255,204 +197,82 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 }
 
-
-
-// ─── Draggable List Card (list & compact views) ──────────
-class _DraggableListCard extends StatefulWidget {
-  final String itemId;
-  final void Function(String fromId, String toId) onReorder;
-  final ValueNotifier<String?> dragState;
-  final Widget child;
-
-  const _DraggableListCard({
-    super.key,
-    required this.itemId,
-    required this.onReorder,
-    required this.dragState,
-    required this.child,
-  });
-
-  @override
-  State<_DraggableListCard> createState() => _DraggableListCardState();
-}
-
-class _DraggableListCardState extends State<_DraggableListCard> {
-  static String? _fromId(String? v) => v?.split('->')[0];
-  static String? _toId(String? v) =>
-      (v != null && v.contains('->')) ? v.split('->')[1] : null;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<String?>(
-      valueListenable: widget.dragState,
-      builder: (ctx, dragVal, _) {
-        final isMe = _fromId(dragVal) == widget.itemId;
-        final isTarget = _toId(dragVal) == widget.itemId;
-
-        return DragTarget<String>(
-          onWillAcceptWithDetails: (d) {
-            if (d.data == widget.itemId) return false;
-            widget.dragState.value = '${d.data}->${widget.itemId}';
-            return true;
-          },
-          onLeave: (fromId) {
-            if (fromId != null) widget.dragState.value = fromId;
-          },
-          onAcceptWithDetails: (d) {
-            final from = d.data;
-            final to = widget.itemId;
-            widget.dragState.value = null;
-            if (from != to) {
-              Future.delayed(const Duration(milliseconds: 220), () {
-                widget.onReorder(from, to);
-              });
-            }
-          },
-          builder: (ctx, _, __) {
-            return LongPressDraggable<String>(
-              data: widget.itemId,
-              delay: const Duration(milliseconds: 350),
-              onDragStarted: () => widget.dragState.value = widget.itemId,
-              onDragEnd: (_) => widget.dragState.value = null,
-              onDraggableCanceled: (_, __) => widget.dragState.value = null,
-              feedback: Material(
-                color: Colors.transparent,
-                child: SizedBox(
-                  width: MediaQuery.of(ctx).size.width - 32,
-                  child: Opacity(opacity: 0.88, child: widget.child),
-                ),
-              ),
-              childWhenDragging: const SizedBox.shrink(),
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 120),
-                opacity: isMe ? 0.0 : 1.0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeInOut,
-                      child: isTarget
-                          ? _DropIndicator(child: widget.child)
-                          : const SizedBox.shrink(),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      decoration: isTarget
-                          ? BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: AppColors.terracotta.withValues(alpha: 0.5),
-                                width: 1.5,
-                              ),
-                            )
-                          : const BoxDecoration(),
-                      child: widget.child,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _DropIndicator extends StatelessWidget {
-  final Widget child;
-  const _DropIndicator({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0,
-      child: IgnorePointer(child: child),
-    );
-  }
-}
-
-// ─── Events Masonry Grid with drag support ────────────────
-class _EventsMasonryGrid extends StatefulWidget {
+// ─── Events Grid ─────────────────────────────────────────
+// date sort → статичный grid; manual sort → ReorderableGridView
+class _EventsMasonryGrid extends StatelessWidget {
   final List<AppEvent> events;
   final AppState state;
   final void Function(AppEvent) onOpenEditor;
   const _EventsMasonryGrid({required this.events, required this.state, required this.onOpenEditor});
 
   @override
-  State<_EventsMasonryGrid> createState() => _EventsMasonryGridState();
-}
-
-class _EventsMasonryGridState extends State<_EventsMasonryGrid> {
-  final ValueNotifier<String?> _dragState = ValueNotifier(null);
-
-  @override
-  void dispose() {
-    _dragState.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final state = widget.state;
-    final events = widget.events;
-    final canDrag = state.eventsSort == 'manual';
     final isDark = state.darkMode;
 
     return LayoutBuilder(builder: (ctx, constraints) {
-      final colWidth = (constraints.maxWidth - 16 - 16 - 10) / 2;
+      const double spacing = 10;
+      const double hPad    = 16;
+      final colWidth = (constraints.maxWidth - hPad * 2 - spacing) / 2;
+      const double itemHeight = 148;
 
-      Widget buildCard(AppEvent e) {
-        final card = SelectableCardWrapper(
-          itemId: e.id,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+      if (state.eventsSort == 'manual') {
+        return ReorderableGridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: spacing,
+          mainAxisSpacing: spacing,
+          childAspectRatio: colWidth / itemHeight,
+          padding: const EdgeInsets.fromLTRB(hPad, 0, hPad, 100),
+          onReorder: (oldIdx, newIdx) {
+            final fromId = events[oldIdx].id;
+            final toId   = events[newIdx].id;
+            context.read<AppState>().reorderEventById(fromId, toId);
+          },
+          dragWidgetBuilder: (index, child) => Material(
+            color: Colors.transparent,
+            child: Transform.scale(scale: 1.03,
+              child: Opacity(opacity: 0.92, child: child)),
+          ),
+          children: events.map((e) => SelectableCardWrapper(
+            key: ValueKey(e.id),
+            itemId: e.id,
             child: _EventGridCard(
               event: e,
               showTag: state.eventsFilter == 'Все',
               isDark: isDark,
-              onTap: () => widget.onOpenEditor(e),
+              onTap: () => onOpenEditor(e),
             ),
-          ),
-        );
-        if (!canDrag) return KeyedSubtree(key: ValueKey(e.id), child: card);
-        final feedbackCard = _EventGridCard(
-          event: e,
-          showTag: state.eventsFilter == 'Все',
-          isDark: isDark,
-          asFeedback: true,
-          onTap: () {},
-        );
-        return _DraggableMasonryCard(
-          key: ValueKey(e.id),
-          itemId: e.id,
-          dragState: _dragState,
-          feedbackWidth: colWidth,
-          onReorder: (fromId, toId) =>
-              context.read<AppState>().reorderEventById(fromId, toId),
-          feedbackChild: feedbackCard,
-          child: card,
+          )).toList(),
         );
       }
+
+      // date sort — обычный двухколоночный grid
+      Widget buildCard(AppEvent e) => KeyedSubtree(
+        key: ValueKey(e.id),
+        child: SelectableCardWrapper(
+          itemId: e.id,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: spacing),
+            child: _EventGridCard(
+              event: e,
+              showTag: state.eventsFilter == 'Все',
+              isDark: isDark,
+              onTap: () => onOpenEditor(e),
+            ),
+          ),
+        ),
+      );
 
       final left  = [for (int i = 0; i < events.length; i += 2) events[i]];
       final right = [for (int i = 1; i < events.length; i += 2) events[i]];
 
       return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        padding: const EdgeInsets.fromLTRB(hPad, 0, hPad, 100),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: colWidth,
-              child: Column(children: left.map(buildCard).toList()),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              width: colWidth,
-              child: Column(children: right.map(buildCard).toList()),
-            ),
+            SizedBox(width: colWidth, child: Column(children: left.map(buildCard).toList())),
+            const SizedBox(width: spacing),
+            SizedBox(width: colWidth, child: Column(children: right.map(buildCard).toList())),
           ],
         ),
       );
@@ -460,348 +280,120 @@ class _EventsMasonryGridState extends State<_EventsMasonryGrid> {
   }
 }
 
-// ─── Event Grid Card (StatelessWidget, no context.watch — safe in drag feedback) ──
+// ─── Event Grid Card ─────────────────────────────────────
 class _EventGridCard extends StatelessWidget {
   final AppEvent event;
   final bool showTag;
   final bool isDark;
   final VoidCallback onTap;
-  final bool asFeedback;
 
   const _EventGridCard({
     required this.event,
     required this.showTag,
     required this.isDark,
     required this.onTap,
-    this.asFeedback = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool hasColor = !asFeedback && event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
-    final Color cardBg = asFeedback
-        ? (isDark ? AppColors.darkBg : AppColors.lightBg)
-        : hasColor
+    final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kEventColors.length;
+    final Color cardBg = hasColor
             ? kEventColors[event.colorIndex - 1]
             : (isDark ? const Color(0x0DFFFFFF) : const Color(0x40FFFFFF));
     final textColor = hasColor ? AppColors.textColorFor(cardBg) : (isDark ? AppColors.darkText : AppColors.lightText);
     final textSec = hasColor ? AppColors.textSecColorFor(cardBg) : (isDark ? AppColors.darkTextBody : AppColors.lightTextBody);
     final borderColor = hasColor ? Colors.transparent : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder);
 
+    final hasChip = event.reminderDate != null || event.repeat != RepeatInterval.none;
+
     return GestureDetector(
       onTap: onTap,
       child: SelectionHighlight(
         borderRadius: BorderRadius.circular(16),
         child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (event.title.isNotEmpty)
-              Text(
-                event.title,
-                style: appTitleStyle(context.watch<AppState>().appFont, size: 13, weight: FontWeight.w600, color: textColor),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            if (event.body.isNotEmpty) ...[
-              const SizedBox(height: 5),
-              Text(
-                event.body,
-                style: GoogleFonts.dmSans(fontSize: 11, color: textSec, height: 1.4),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            if (event.reminderDate != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.terracotta.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.notifications_outlined, size: 11, color: AppColors.terracotta),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        formatDateTime(event.reminderDate),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600,
+          width: double.infinity,
+          height: 148,
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Stack(
+            children: [
+              // Контент — паддинг снизу резервирует место под чип
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(12, 12, 12, hasChip ? 38 : 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (event.title.isNotEmpty)
+                        Text(
+                          event.title,
+                          style: appTitleStyle(context.watch<AppState>().appFont, size: 13, weight: FontWeight.w600, color: textColor),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                      if (event.body.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          event.body,
+                          style: GoogleFonts.dmSans(fontSize: 11, color: textSec, height: 1.4),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
+              // Чип — всегда прибит к низу
+              if (hasChip)
+                Positioned(
+                  bottom: 10, left: 12, right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.terracotta.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          event.reminderDate != null
+                              ? Icons.notifications_outlined
+                              : Icons.repeat_rounded,
+                          size: 11, color: AppColors.terracotta,
+                        ),
+                        const SizedBox(width: 4),
+                        if (event.reminderDate != null)
+                          Flexible(
+                            child: Text(
+                              formatDateTime(event.reminderDate),
+                              style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        if (event.repeat != RepeatInterval.none && event.reminderDate == null)
+                          Text(
+                            repeatLabel(event.repeat, event.customDays),
+                            style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
-          ],
-        ),
+          ),
         ),
       ),
     );
   }
 }
-
-
-// ─── Draggable Masonry Card (shared) ─────────────────────
-class _DraggableMasonryCard extends StatefulWidget {
-  final String itemId;
-  final void Function(String fromId, String toId) onReorder;
-  final ValueNotifier<String?> dragState;
-  final Widget child;
-  final Widget feedbackChild;
-  final double feedbackWidth;
-
-  const _DraggableMasonryCard({
-    super.key,
-    required this.itemId,
-    required this.onReorder,
-    required this.dragState,
-    required this.child,
-    required this.feedbackChild,
-    required this.feedbackWidth,
-  });
-
-  @override
-  State<_DraggableMasonryCard> createState() => _DraggableMasonryCardState();
-}
-
-class _DraggableMasonryCardState extends State<_DraggableMasonryCard> {
-  static String? _draggingIdFrom(String? v) {
-    if (v == null) return null;
-    return v.split('->')[0];
-  }
-
-  static String? _targetIdFrom(String? v) {
-    if (v == null || !v.contains('->')) return null;
-    return v.split('->')[1];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<String?>(
-      valueListenable: widget.dragState,
-      builder: (ctx, dragVal, _) {
-        final isMe = _draggingIdFrom(dragVal) == widget.itemId;
-        final isTarget = _targetIdFrom(dragVal) == widget.itemId;
-
-        return DragTarget<String>(
-          onWillAcceptWithDetails: (details) {
-            if (details.data == widget.itemId) return false;
-            widget.dragState.value = '${details.data}->${widget.itemId}';
-            return true;
-          },
-          onLeave: (fromId) {
-            if (fromId != null) widget.dragState.value = fromId;
-          },
-          onAcceptWithDetails: (details) {
-            final fromId = details.data;
-            final toId = widget.itemId;
-            widget.dragState.value = null;
-            if (fromId != toId) {
-              Future.delayed(const Duration(milliseconds: 220), () {
-                widget.onReorder(fromId, toId);
-              });
-            }
-          },
-          builder: (ctx, candidateData, rejectedData) {
-            return LongPressDraggable<String>(
-              data: widget.itemId,
-              delay: const Duration(milliseconds: 350),
-              onDragStarted: () => widget.dragState.value = widget.itemId,
-              onDragEnd: (_) => widget.dragState.value = null,
-              onDraggableCanceled: (_, __) => widget.dragState.value = null,
-              feedback: Builder(builder: (ctx) {
-                  return SizedBox(
-                  width: widget.feedbackWidth,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Opacity(opacity: 0.92, child: widget.feedbackChild),
-                  ),
-                );
-              }),
-              childWhenDragging: _SizedPlaceholder(visible: false, child: widget.child),
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 120),
-                opacity: isMe ? 0.0 : 1.0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeInOut,
-                      child: isTarget
-                          ? _SizedPlaceholder(visible: true, child: widget.child)
-                          : const SizedBox.shrink(),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      decoration: isTarget
-                          ? BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: AppColors.terracotta.withValues(alpha: 0.5),
-                                width: 1.5,
-                              ),
-                            )
-                          : const BoxDecoration(),
-                      child: widget.child,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _SizedPlaceholder extends StatefulWidget {
-  final Widget child;
-  final bool visible;
-  const _SizedPlaceholder({required this.child, required this.visible});
-
-  @override
-  State<_SizedPlaceholder> createState() => _SizedPlaceholderState();
-}
-
-class _SizedPlaceholderState extends State<_SizedPlaceholder> {
-  final _key = GlobalKey();
-  Size? _size;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
-  }
-
-  void _measure() {
-    final ctx = _key.currentContext;
-    if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox?;
-    if (box != null && mounted && _size != box.size) {
-      setState(() => _size = box.size);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Opacity(opacity: 0, child: KeyedSubtree(key: _key, child: widget.child)),
-        if (_size != null)
-          SizedBox(
-            width: _size!.width,
-            height: _size!.height,
-            child: widget.visible
-                ? Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.terracotta.withValues(alpha: 0.35),
-                          width: 1.5,
-                        ),
-                        color: AppColors.terracotta.withValues(alpha: 0.05),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-      ],
-    );
-  }
-}
-
 
 // ─── Swipable Card ─────────────────────────────────────────
-class _SwipableCard extends StatelessWidget {
-  final Key itemKey;
-  final Widget child;
-  final VoidCallback onDelete;
-  final EdgeInsets padding;
-  const _SwipableCard({super.key, required this.itemKey, required this.child, required this.onDelete, this.padding = EdgeInsets.zero});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = context.watch<AppState>().darkMode;
-    return Dismissible(
-      key: itemKey,
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        return await showDialog<bool>(
-          context: context,
-          barrierColor: Colors.black.withValues(alpha: 0.4),
-          builder: (ctx) {
-            final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-            final text = isDark ? AppColors.darkText : AppColors.lightText;
-            final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
-            return Dialog(
-              backgroundColor: bg,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Удалить?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
-                    const SizedBox(height: 8),
-                    Text('Это действие нельзя отменить.', style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
-                    const SizedBox(height: 20),
-                    Row(children: [
-                      Expanded(child: GestureDetector(
-                        onTap: () => Navigator.pop(ctx, false),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(color: isDark ? AppColors.darkBg2 : AppColors.lightBg2, borderRadius: BorderRadius.circular(12)),
-                          alignment: Alignment.center,
-                          child: Text('Отмена', style: GoogleFonts.dmSans(fontSize: 13, color: textSec, fontWeight: FontWeight.w600)),
-                        ),
-                      )),
-                      const SizedBox(width: 10),
-                      Expanded(child: GestureDetector(
-                        onTap: () => Navigator.pop(ctx, true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(12)),
-                          alignment: Alignment.center,
-                          child: Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)),
-                        ),
-                      )),
-                    ]),
-                  ],
-                ),
-              ),
-            );
-          },
-        ) ?? false;
-      },
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        margin: padding,
-        decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(18)),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
-      ),
-      child: Padding(padding: padding, child: child),
-    );
-  }
-}
 
 // ─── Event Card ────────────────────────────────────────────
 class _EventCard extends StatefulWidget {
@@ -926,7 +518,7 @@ class _EventCardState extends State<_EventCard> {
                       : Text(
                           event.body,
                           style: contentStyle(state.contentFont, size: view == 2 ? 11 : 12, color: textSec, height: 1.4),
-                          maxLines: view == 1 ? 3 : 2,
+                          maxLines: view == 1 ? 3 : 4,
                           overflow: TextOverflow.ellipsis,
                         ),
                   ),

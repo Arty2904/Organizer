@@ -19,6 +19,8 @@ lib/
   theme/
     app_theme.dart           # AppColors, buildTheme(), textColorFor helpers
     font_helper.dart         # appTitleStyle(), contentStyle(), kFontOptions, kContentFontOptions
+    card_colors.dart         # kCardColors (21 colors), kNoteColors/kTodoColors/kEventColors aliases,
+                             # cardColorFor(colorIndex)
   screens/
     home_shell.dart          # Main scaffold: AppBar, IndexedStack, _BottomNav,
                              # _BulkActionBar, _OptionsButton, _OptionsDropDown
@@ -34,6 +36,11 @@ lib/
                              # AppSearchBar, CategoryFilterRow,
                              # formatDate(), formatDateTime(), repeatLabel(),
                              # CustomDateTimePicker
+    common_widgets.dart      # Shared UI components extracted from screen files:
+                             # DeleteConfirmDialog, SwipableCard, EmptyState,
+                             # ScreenHeader, ExpandCollapseBar, CategoryChip,
+                             # ColorPickerGrid, DraggableListCard
+                             # Re-exports shared_widgets.dart
     selection_state.dart     # SelectionState, SelectionScope,
                              # SelectableCardWrapper, SelectionHighlight
 ```
@@ -129,20 +136,11 @@ Key pairs: `darkBg/lightBg`, `darkText/lightText`, `darkTextBody/lightTextBody`,
 `darkSurface/lightSurface`, `darkSearchBg/lightSearchBg`, etc.
 Accents: `AppColors.terracotta` (dark), `AppColors.terracottaLight` (light)
 
-### Card color palettes — all 5 must stay in sync
-`kNoteColors` (notes_screen), `kTodoColors` (todos_screen), `kEventColors` (events_screen),
-`_kPaletteColors` (folder_manager_screen), `colors` local const in `home_shell._showColorSheet`.
-All use the same 21 muted warm tones:
-```dart
-Color(0xFFB85C5C), Color(0xFFB5607A), Color(0xFF7A5490),
-Color(0xFF5C5490), Color(0xFF4A5880), Color(0xFF4878A8),
-Color(0xFF3A8898), Color(0xFF3A8880), Color(0xFF3A7870),
-Color(0xFF5A8C50), Color(0xFF6E8C50), Color(0xFF8A9048),
-Color(0xFFB89840), Color(0xFFB88030), Color(0xFFB87030),
-Color(0xFFB06040), Color(0xFFA06840), Color(0xFF7A5840),
-Color(0xFF5A6870), Color(0xFF787870), Color(0xFF404850),
-```
-`colorIndex` 0 = no color, 1-21 = palette index. Color pickers show index 0 as reset (block icon).
+### Card color palettes — single source of truth in `card_colors.dart`
+All palettes are unified under `kCardColors` (21 muted warm tones) in `theme/card_colors.dart`.
+`kNoteColors`, `kTodoColors`, `kEventColors` are backward-compat aliases pointing to the same list — migrate call-sites to `kCardColors` and remove aliases when convenient.
+`cardColorFor(int colorIndex)` returns the `Color` for a given index (null for index 0).
+No separate per-screen palette lists exist anymore; do not re-introduce them.
 
 ### Text on colored cards — CRITICAL
 When `colorIndex > 0`, never hardcode text/divider colors. Always:
@@ -253,6 +251,17 @@ Repeating events expanded into individual occurrences within the range.
 - `repeatLabel(RepeatInterval, int?)` — human-readable repeat string
 - `CustomDateTimePicker` — drum-style date+time picker dialog
 
+## common_widgets.dart Public API
+Re-exports `shared_widgets.dart` — screens only need to import `common_widgets.dart`.
+- `DeleteConfirmDialog` — standard delete confirmation dialog; use `DeleteConfirmDialog.show(context, ...)` helper
+- `SwipableCard` — Dismissible wrapper (swipe left → delete confirm dialog)
+- `EmptyState` — centered icon + label for empty lists
+- `ScreenHeader` — search bar + category filter row (used by Notes, Events, Todos)
+- `ExpandCollapseBar` — «Развернуть все» / «Свернуть все» row above lists
+- `CategoryChip` — folder/category selector chip for editors
+- `ColorPickerGrid` — 21-color + reset picker grid; `large` param toggles dialog vs inline size
+- `DraggableListCard` — LongPressDraggable + DragTarget wrapper for manual sort in list view
+
 ## Key Conventions
 - Colors always from AppColors — never hardcoded hex
 - `context.watch<AppState>()` for reactive reads, `context.read<AppState>()` in callbacks/initState
@@ -269,7 +278,8 @@ Repeating events expanded into individual occurrences within the range.
 - Static methods on State — not accessible via StatefulWidget class name; move to top-level functions
 - Duplicate variable declarations — inserting code near existing `final cardBg = ...` creates duplicate; check surrounding lines
 - `eventsInMonth()` ignores repeat — for calendar dots/lists use `eventOccurrenceDaysInMonth()` helpers
-- All 5 color palettes must stay in sync — if updating card colors update all: `kNoteColors`, `kTodoColors`, `kEventColors`, `_kPaletteColors`, and local `colors` in `_showColorSheet`
+- Card color palette — single source is `kCardColors` in `card_colors.dart`. Do not define separate per-screen lists. `kNoteColors`/`kTodoColors`/`kEventColors` are aliases; prefer `kCardColors` in new code.
+- Swipe-to-delete, empty states, screen headers, expand/collapse bar, category chip, color picker grid, draggable list cards — use components from `common_widgets.dart`, not inline duplicates
 
 ## GitHub
 - Repo: `Arty2904/Organizer`
