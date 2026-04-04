@@ -127,8 +127,8 @@ class _AppSidebarState extends State<AppSidebar> {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(state.userName.isEmpty ? 'Профиль' : state.userName,
-                          style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
-                        Text('Настройки', style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
+                          style: appTitleStyle(state.appFont, size: 14, weight: FontWeight.w600, color: text)),
+                        Text('Настройки', style: appTitleStyle(state.appFont, size: 11, color: textSec)),
                       ]),
                     ),
                     Icon(Icons.chevron_right_rounded, color: textSec, size: 18),
@@ -160,9 +160,9 @@ class _AppSidebarState extends State<AppSidebar> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 12, 6),
               child: Row(children: [
-                Expanded(child: Text('СОДЕРЖИМОЕ', style: GoogleFonts.dmSans(
-                  fontSize: 9, fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5, color: AppColors.terracotta,
+                Expanded(child: Text('СОДЕРЖИМОЕ', style: appTitleStyle(
+                  state.appFont,
+                  size: 9, weight: FontWeight.w800, color: AppColors.terracotta,
                 ))),
                 GestureDetector(
                   onTap: () => _toggleAll(allKeys),
@@ -180,7 +180,7 @@ class _AppSidebarState extends State<AppSidebar> {
                       const SizedBox(width: 3),
                       Text(
                         _allCollapsed ? 'Развернуть' : 'Свернуть',
-                        style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.terracotta),
+                        style: appTitleStyle(state.appFont, size: 10, weight: FontWeight.w600, color: AppColors.terracotta),
                       ),
                     ]),
                   ),
@@ -211,9 +211,9 @@ class _AppSidebarState extends State<AppSidebar> {
                               size: 14, color: AppColors.terracotta,
                             ),
                             const SizedBox(width: 4),
-                            Text(section.label, style: GoogleFonts.dmSans(
-                              fontSize: 9, fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2, color: AppColors.terracotta,
+                            Text(section.label, style: appTitleStyle(
+                              state.appFont,
+                              size: 9, weight: FontWeight.w800, color: AppColors.terracotta,
                             )),
                             const SizedBox(width: 6),
                             Text('${section.items.length}', style: GoogleFonts.dmSans(
@@ -243,8 +243,9 @@ class _AppSidebarState extends State<AppSidebar> {
                                       size: 16, color: fColor,
                                     ),
                                     const SizedBox(width: 7),
-                                    Expanded(child: Text(folder, style: GoogleFonts.dmSans(
-                                      fontSize: 12, fontWeight: FontWeight.w600,
+                                    Expanded(child: Text(folder, style: appTitleStyle(
+                                      state.appFont,
+                                      size: 12, weight: FontWeight.w600,
                                       color: fCollapsed ? text : fColor,
                                     ))),
                                     if (fItems.isNotEmpty)
@@ -278,8 +279,9 @@ class _AppSidebarState extends State<AppSidebar> {
                                         size: 16, color: textSec,
                                       ),
                                       const SizedBox(width: 7),
-                                      Expanded(child: Text('без папки', style: GoogleFonts.dmSans(
-                                        fontSize: 12, fontWeight: FontWeight.w600,
+                                      Expanded(child: Text('без папки', style: appTitleStyle(
+                                        state.appFont,
+                                        size: 12, weight: FontWeight.w600,
                                         color: uCollapsed ? text : textSec,
                                       ))),
                                       Text('${uncategorized.length}', style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
@@ -343,7 +345,7 @@ class _AppSidebarState extends State<AppSidebar> {
         child: Row(children: [
           if (icon != null) Icon(icon, size: 16, color: textSec),
           const SizedBox(width: 12),
-          Text(label, style: GoogleFonts.dmSans(fontSize: 13, color: text)),
+          Text(label, style: appTitleStyle(context.watch<AppState>().appFont, size: 13, color: text)),
         ]),
       ),
     );
@@ -367,7 +369,7 @@ class _ItemTile extends StatelessWidget {
         child: Row(children: [
           Container(width: 3, height: 3, decoration: BoxDecoration(color: textSec, shape: BoxShape.circle)),
           const SizedBox(width: 8),
-          Expanded(child: Text(item.title, style: GoogleFonts.dmSans(fontSize: 12, color: text),
+          Expanded(child: Text(item.title, style: appTitleStyle(context.watch<AppState>().appFont, size: 12, color: text),
             overflow: TextOverflow.ellipsis, maxLines: 1)),
         ]),
       ),
@@ -424,7 +426,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = state.darkMode;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
     _fontOverlay = OverlayEntry(builder: (_) => GestureDetector(
@@ -446,27 +447,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: divider, width: 0.5),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
               ),
-              child: Column(mainAxisSize: MainAxisSize.min,
-                children: kFontOptions.map((f) {
-                  final sel = _pendingAppFont == f.$1;
-                  return GestureDetector(
-                    onTap: () { setState(() => _pendingAppFont = f.$1); _closeOverlays(); },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(f.$2, style: appTitleStyle(f.$1, size: 15, color: sel ? AppColors.terracotta : text)),
-                          Text(f.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
-                        ])),
-                        if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
-                      ]),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min,
+                      children: () {
+                        final items = <Widget>[];
+                        for (int i = 0; i < kFontOptions.length; i++) {
+                          final f = kFontOptions[i];
+                          final sel = _pendingAppFont == f.$1;
+                          items.add(GestureDetector(
+                            onTap: () { setState(() => _pendingAppFont = f.$1); _closeOverlays(); },
+                            child: Container(
+                              color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                              child: Row(children: [
+                                Expanded(child: Text(f.$2, style: appTitleStyle(f.$1, size: 14, color: sel ? AppColors.terracotta : text))),
+                                if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
+                              ]),
+                            ),
+                          ));
+                          if (i < kFontOptions.length - 1)
+                            items.add(Divider(height: 1, thickness: 0.5, color: divider, indent: 16, endIndent: 16));
+                        }
+                        return items;
+                      }(),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -482,7 +492,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = state.darkMode;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
     _contentFontOverlay = OverlayEntry(builder: (_) => GestureDetector(
@@ -504,27 +513,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: divider, width: 0.5),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
               ),
-              child: Column(mainAxisSize: MainAxisSize.min,
-                children: kContentFontOptions.map((f) {
-                  final sel = _pendingContentFont == f.$1;
-                  return GestureDetector(
-                    onTap: () { setState(() => _pendingContentFont = f.$1); _closeOverlays(); },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(f.$2, style: contentStyle(f.$1, size: 14, color: sel ? AppColors.terracotta : text)),
-                          Text(f.$3, style: GoogleFonts.dmSans(fontSize: 11, color: textSec)),
-                        ])),
-                        if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
-                      ]),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min,
+                      children: () {
+                        final items = <Widget>[];
+                        for (int i = 0; i < kContentFontOptions.length; i++) {
+                          final f = kContentFontOptions[i];
+                          final sel = _pendingContentFont == f.$1;
+                          items.add(GestureDetector(
+                            onTap: () { setState(() => _pendingContentFont = f.$1); _closeOverlays(); },
+                            child: Container(
+                              color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                              child: Row(children: [
+                                Expanded(child: Text(f.$2, style: contentStyle(f.$1, size: 14, color: sel ? AppColors.terracotta : text))),
+                                if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
+                              ]),
+                            ),
+                          ));
+                          if (i < kContentFontOptions.length - 1)
+                            items.add(Divider(height: 1, thickness: 0.5, color: divider, indent: 16, endIndent: 16));
+                        }
+                        return items;
+                      }(),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -581,8 +599,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(children: [
                         Icon(t.$2, size: 16, color: sel ? AppColors.terracotta : text),
                         const SizedBox(width: 10),
-                        Expanded(child: Text(t.$3, style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                        Expanded(child: Text(t.$3, style: appTitleStyle(
+                          _pendingAppFont,
+                          size: 13, weight: sel ? FontWeight.w600 : FontWeight.w400,
                           color: sel ? AppColors.terracotta : text,
                         ))),
                         if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
@@ -665,9 +684,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(children: [
-                        Expanded(child: Text(o.$2, style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                        Expanded(child: Text(o.$2, style: appTitleStyle(
+                          state.appFont,
+                          size: 14,
+                          weight: sel ? FontWeight.w600 : FontWeight.w400,
                           color: sel ? AppColors.terracotta : text,
                         ))),
                         if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
@@ -714,8 +734,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icon(Icons.arrow_back_ios_rounded, size: 18, color: text),
             onPressed: () => Navigator.pop(context),
           ),
-          title: Text('Настройки', style: GoogleFonts.fraunces(
-            fontSize: 15, fontWeight: FontWeight.w600, color: text, fontStyle: FontStyle.normal,
+          title: Text('Настройки', style: appTitleStyle(
+            _pendingAppFont, size: 15, weight: FontWeight.w600, color: text,
           )),
           centerTitle: true,
           bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Divider(color: divider, height: 1)),
@@ -732,11 +752,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _Section(title: 'ИМЯ', child: TextField(
                     controller: _nameCtrl,
                     maxLines: 1,
-                    style: GoogleFonts.dmSans(fontSize: 14, color: text),
+                    style: appTitleStyle(_pendingAppFont, size: 14, color: text),
                     decoration: InputDecoration(
                       filled: true, fillColor: fieldBg,
                       hintText: 'Введите имя...',
-                      hintStyle: GoogleFonts.dmSans(fontSize: 14, color: textHint),
+                      hintStyle: appTitleStyle(_pendingAppFont, size: 14, color: textHint),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       isDense: true,
@@ -798,7 +818,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Row(children: [
                           Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, size: 16, color: AppColors.terracotta),
                           const SizedBox(width: 10),
-                          Expanded(child: Text(isDark ? 'Тёмная' : 'Светлая', style: GoogleFonts.dmSans(fontSize: 14, color: text))),
+                          Expanded(child: Text(isDark ? 'Тёмная' : 'Светлая', style: appTitleStyle(_pendingAppFont, size: 14, color: text))),
                           Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
                         ]),
                       ),
@@ -823,7 +843,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const SizedBox(width: 10),
                             Expanded(child: Text(
                               _reminderLabel(state.reminderOffsetMinutes),
-                              style: GoogleFonts.dmSans(fontSize: 14, color: text),
+                              style: appTitleStyle(_pendingAppFont, size: 14, color: text),
                             )),
                             Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
                           ]),
@@ -862,8 +882,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       alignment: Alignment.center,
-                      child: Text('Сохранить', style: GoogleFonts.dmSans(
-                        fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
+                      child: Text('Сохранить', style: appTitleStyle(
+                        _pendingAppFont,
+                        size: 14, weight: FontWeight.w700, color: Colors.white,
                       )),
                     ),
                   ),
@@ -885,11 +906,12 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appFont = context.watch<AppState>().appFont;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Text(title, style: GoogleFonts.dmSans(
-          fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2,
-          color: AppColors.terracotta.withValues(alpha: 0.8),
+        Text(title, style: appTitleStyle(
+          appFont,
+          size: 9, weight: FontWeight.w800, color: AppColors.terracotta.withValues(alpha: 0.8),
         )),
         if (tooltip != null) ...[
           const SizedBox(width: 5),
@@ -901,7 +923,7 @@ class _Section extends StatelessWidget {
               color: AppColors.terracotta.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(8),
             ),
-            textStyle: GoogleFonts.dmSans(fontSize: 11, color: Colors.white, height: 1.5),
+            textStyle: appTitleStyle(appFont, size: 11, color: Colors.white),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Icon(
               Icons.info_outline_rounded,

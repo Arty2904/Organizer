@@ -295,6 +295,7 @@ class _EventGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
     final bool hasColor = event.colorIndex > 0 && event.colorIndex <= kCardColors.length;
     final Color cardBg = hasColor
             ? kCardColors[event.colorIndex - 1]
@@ -330,7 +331,7 @@ class _EventGridCard extends StatelessWidget {
                       if (event.title.isNotEmpty)
                         Text(
                           event.title,
-                          style: appTitleStyle(context.watch<AppState>().appFont, size: 13, weight: FontWeight.w600, color: textColor),
+                          style: appTitleStyle(state.appFont, size: 13, weight: FontWeight.w600, color: textColor),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -338,7 +339,7 @@ class _EventGridCard extends StatelessWidget {
                         const SizedBox(height: 5),
                         Text(
                           event.body,
-                          style: GoogleFonts.dmSans(fontSize: 11, color: textSec, height: 1.4),
+                          style: contentStyle(state.contentFont, size: 11, color: textSec, height: 1.4),
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -594,9 +595,12 @@ class _EventCardState extends State<_EventCard> {
                               child: item.done ? const Icon(Icons.check_rounded, size: 10, color: Colors.white) : null,
                             ),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(item.text, style: GoogleFonts.dmSans(
-                              fontSize: view == 2 ? 11 : 12,
+                            Expanded(child: Text(item.text, style: contentStyle(
+                              state.contentFont,
+                              size: view == 2 ? 11 : 12,
                               color: item.done ? textSec : textColor,
+                              height: 1.4,
+                            ).copyWith(
                               decoration: item.done ? TextDecoration.lineThrough : null,
                               decorationColor: textSec,
                             ), overflow: TextOverflow.ellipsis)),
@@ -739,9 +743,10 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                               Expanded(
                                 child: Text(
                                   tag.isEmpty ? '–' : tag,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                                  style: appTitleStyle(
+                                    state.appFont,
+                                    size: 12,
+                                    weight: sel ? FontWeight.w700 : FontWeight.w400,
                                     color: sel ? tColor : text,
                                   ),
                                 ),
@@ -785,7 +790,9 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
   }
 
   void _showRepeatPicker() {
-    final isDark = context.read<AppState>().darkMode;
+    final appState = context.read<AppState>();
+    final isDark = appState.darkMode;
+    final appFont = appState.appFont;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
@@ -856,19 +863,21 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                           // Label / inline input for custom
                           if (!isCustom)
                             Expanded(child: Text(staticLabels[opt]!,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
+                              style: appTitleStyle(
+                                appFont,
+                                size: 14,
+                                weight: sel ? FontWeight.w600 : FontWeight.w400,
                                 color: sel ? AppColors.terracotta : text,
-                                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                               )))
                           else
                             Expanded(child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Через ', style: GoogleFonts.dmSans(
-                                  fontSize: 14,
+                                Text('Через ', style: appTitleStyle(
+                                  appFont,
+                                  size: 14,
+                                  weight: sel ? FontWeight.w600 : FontWeight.w400,
                                   color: sel ? AppColors.terracotta : text,
-                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                                 )),
                                 // Inline number field
                                 IntrinsicWidth(
@@ -877,15 +886,17 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                                     focusNode: _customDaysFocus,
                                     keyboardType: TextInputType.number,
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
+                                    style: appTitleStyle(
+                                      appFont,
+                                      size: 14,
+                                      weight: FontWeight.w700,
                                       color: AppColors.terracotta,
                                     ),
                                     decoration: InputDecoration(
                                       hintText: 'N',
-                                      hintStyle: GoogleFonts.dmSans(
-                                        fontSize: 14,
+                                      hintStyle: appTitleStyle(
+                                        appFont,
+                                        size: 14,
                                         color: textSec,
                                       ),
                                       isDense: true,
@@ -916,10 +927,11 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                                     onSubmitted: (_) => Navigator.pop(ctx),
                                   ),
                                 ),
-                                Text(' дней', style: GoogleFonts.dmSans(
-                                  fontSize: 14,
+                                Text(' дней', style: appTitleStyle(
+                                  appFont,
+                                  size: 14,
+                                  weight: sel ? FontWeight.w600 : FontWeight.w400,
                                   color: sel ? AppColors.terracotta : text,
-                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                                 )),
                               ],
                             )),
@@ -1122,8 +1134,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                       const SizedBox(width: 4),
                       Text(
                         _reminderDate != null ? formatDateTime(_reminderDate) : 'Напоминание',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
+                        style: appTitleStyle(state.appFont, size: 12,
                           color: _reminderDate != null ? AppColors.terracotta : textSec,
                         ),
                       ),
@@ -1152,8 +1163,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                       const SizedBox(width: 4),
                       Text(
                         _repeat != RepeatInterval.none ? _repeatLabel : 'Повтор',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
+                        style: appTitleStyle(state.appFont, size: 12,
                           color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
                         ),
                       ),
@@ -1166,8 +1176,8 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                   onTap: _save,
                   child: Text(
                     'Готово',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.terracotta,
+                    style: appTitleStyle(state.appFont, size: 14,
+                      weight: FontWeight.w600, color: AppColors.terracotta,
                     ),
                   ),
                 ),

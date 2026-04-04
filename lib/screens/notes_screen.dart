@@ -295,7 +295,7 @@ class _SwipableNote extends StatelessWidget {
           children: [
             const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
             const SizedBox(height: 2),
-            Text('Удалить', style: GoogleFonts.dmSans(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+            Text('Удалить', style: appTitleStyle(context.watch<AppState>().appFont, size: 10, weight: FontWeight.w600, color: Colors.white)),
           ],
         ),
       ),
@@ -673,6 +673,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final appFont = context.read<AppState>().appFont;
 
     _menuOverlayEntry = OverlayEntry(
       builder: (_) => GestureDetector(
@@ -718,7 +719,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             children: [
                               Icon(Icons.palette_outlined, size: 16, color: AppColors.terracotta),
                               const SizedBox(width: 10),
-                              Text('Цвет', style: GoogleFonts.dmSans(fontSize: 13, color: text)),
+                              Text('Цвет', style: appTitleStyle(appFont, size: 13, color: text)),
                             ],
                           ),
                         ),
@@ -737,7 +738,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             children: [
                               Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.withValues(alpha: 0.75)),
                               const SizedBox(width: 10),
-                              Text('Удалить', style: GoogleFonts.dmSans(fontSize: 13, color: Colors.red.withValues(alpha: 0.85))),
+                              Text('Удалить', style: appTitleStyle(appFont, size: 13, color: Colors.red.withValues(alpha: 0.85))),
                             ],
                           ),
                         ),
@@ -789,6 +790,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
+    final appFont = context.read<AppState>().appFont;
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -801,11 +803,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Удалить заметку?', style: appTitleStyle(context.watch<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
+              Text('Удалить заметку?', style: appTitleStyle(appFont, size: 18, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 8),
               Text(
                 widget.note?.title.isEmpty ?? true ? 'Без названия' : widget.note!.title,
-                style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                style: appTitleStyle(appFont, size: 13, color: textSec),
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 20),
@@ -821,8 +823,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text('Отмена', style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: textSec,
+                        child: Text('Отмена', style: appTitleStyle(
+                          appFont, size: 13, weight: FontWeight.w600, color: textSec,
                         )),
                       ),
                     ),
@@ -841,8 +843,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text('Удалить', style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white,
+                        child: Text('Удалить', style: appTitleStyle(
+                          appFont, size: 13, weight: FontWeight.w700, color: Colors.white,
                         )),
                       ),
                     ),
@@ -1033,8 +1035,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           children: [
                             Text(
                               _category.isEmpty ? '–' : _category,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11, fontWeight: FontWeight.w700,
+                              style: appTitleStyle(state.appFont,
+                                size: 11, weight: FontWeight.w700,
                                 color: catColor,
                               ),
                             ),
@@ -1090,9 +1092,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(tag.isEmpty ? '–' : tag,
-                                        style: GoogleFonts.dmSans(
-                                          fontSize: 12,
-                                          fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                                        style: appTitleStyle(state.appFont,
+                                          size: 12,
+                                          weight: sel ? FontWeight.w700 : FontWeight.w400,
                                           color: sel ? tColor : text,
                                         ),
                                       ),

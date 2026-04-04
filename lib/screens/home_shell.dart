@@ -378,7 +378,7 @@ class _FolderToastState extends State<_FolderToast> with SingleTickerProviderSta
                     const SizedBox(width: 8),
                     Text(
                       'Перемещено в «${widget.label}»',
-                      style: GoogleFonts.dmSans(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500, decoration: TextDecoration.none),
+                      style: appTitleStyle(context.read<AppState>().appFont, size: 13, weight: FontWeight.w500, color: Colors.white, fontStyle: null),
                     ),
                   ],
                 ),
@@ -467,7 +467,7 @@ class _BulkActionBar extends StatelessWidget {
                   style: appTitleStyle(state.appFont, size: 18, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 8),
               Text('Это действие нельзя отменить.',
-                  style: GoogleFonts.dmSans(fontSize: 13, color: textSec)),
+                  style: appTitleStyle(state.appFont, size: 13, color: textSec)),
               const SizedBox(height: 20),
               Row(children: [
                 Expanded(child: GestureDetector(
@@ -479,8 +479,8 @@ class _BulkActionBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
-                    child: Text('Отмена', style: GoogleFonts.dmSans(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: textSec)),
+                    child: Text('Отмена', style: appTitleStyle(
+                        state.appFont, size: 13, weight: FontWeight.w600, color: textSec)),
                   ),
                 )),
                 const SizedBox(width: 10),
@@ -497,8 +497,8 @@ class _BulkActionBar extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(12)),
                     alignment: Alignment.center,
-                    child: Text('Удалить', style: GoogleFonts.dmSans(
-                        fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                    child: Text('Удалить', style: appTitleStyle(
+                        state.appFont, size: 13, weight: FontWeight.w700, color: Colors.white)),
                   ),
                 )),
               ]),
@@ -639,8 +639,8 @@ class _BulkBtn extends StatelessWidget {
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 22, color: color),
       const SizedBox(height: 4),
-      Text(label, style: GoogleFonts.dmSans(
-          fontSize: 11, fontWeight: FontWeight.w500, color: color)),
+      Text(label, style: appTitleStyle(context.watch<AppState>().appFont,
+          size: 11, weight: FontWeight.w500, color: color)),
     ]),
   );
 }
@@ -657,6 +657,7 @@ class _FolderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final appFont = context.watch<AppState>().appFont;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -666,7 +667,7 @@ class _FolderTile extends StatelessWidget {
           Container(width: 8, height: 8,
               decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 12),
-          Text(label, style: GoogleFonts.dmSans(fontSize: 14, color: text)),
+          Text(label, style: appTitleStyle(appFont, size: 14, color: text)),
         ]),
       ),
     );
@@ -804,9 +805,9 @@ class _OptionsDropDown extends StatelessWidget {
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
 
-    final headerStyle = GoogleFonts.dmSans(
-      fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.7,
-      color: AppColors.terracotta.withValues(alpha: 0.8),
+    final headerStyle = appTitleStyle(
+      context.watch<AppState>().appFont,
+      size: 9, weight: FontWeight.w700, color: AppColors.terracotta.withValues(alpha: 0.8),
     );
 
     Widget item(IconData icon, String label, bool sel, VoidCallback onTap) =>
@@ -818,9 +819,10 @@ class _OptionsDropDown extends StatelessWidget {
             child: Row(children: [
               Icon(icon, size: 14, color: sel ? AppColors.terracotta : textSec),
               const SizedBox(width: 8),
-              Expanded(child: Text(label, style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+              Expanded(child: Text(label, style: appTitleStyle(
+                context.watch<AppState>().appFont,
+                size: 12,
+                weight: sel ? FontWeight.w600 : FontWeight.w400,
                 color: sel ? AppColors.terracotta : text,
               ))),
               if (sel) Icon(Icons.check_rounded, size: 12, color: AppColors.terracotta),

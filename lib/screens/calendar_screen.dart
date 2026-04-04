@@ -229,7 +229,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       child: Row(children: [
                         Icon(Icons.search_rounded, size: 16, color: AppColors.terracotta),
                         const SizedBox(width: 10),
-                        Text('Поиск', style: GoogleFonts.dmSans(fontSize: 13, color: text)),
+                        Text('Поиск', style: appTitleStyle(state.appFont, size: 13, color: text)),
                       ]),
                     ),
                   ),
@@ -640,8 +640,8 @@ class _MonthDetail extends StatelessWidget {
                   Expanded(child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5),
                     child: Text(d, textAlign: TextAlign.center,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10, fontWeight: FontWeight.w700,
+                      style: appTitleStyle(state.appFont,
+                        size: 10, weight: FontWeight.w700,
                         color: d == 'Сб' || d == 'Вс'
                             ? AppColors.terracotta.withValues(alpha: 0.6)
                             : textSec,
@@ -716,7 +716,7 @@ class _MonthDetail extends StatelessWidget {
                   if (dayEvents.isEmpty && dayTodos.isEmpty) {
                     return Center(child: Text(
                       'Нет событий',
-                      style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                      style: appTitleStyle(state.appFont, size: 13, color: textSec),
                     ));
                   }
                   return ListView(
@@ -760,7 +760,7 @@ class _MonthDetail extends StatelessWidget {
                 if (todayEvents.isEmpty && upcomingEvents.isEmpty) {
                   return Center(child: Text(
                     'Нет событий',
-                    style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                    style: appTitleStyle(state.appFont, size: 13, color: textSec),
                   ));
                 }
                 return ListView(
@@ -807,9 +807,9 @@ class _ListHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(label, style: GoogleFonts.dmSans(
-      fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5,
-      color: AppColors.terracotta,
+    child: Text(label, style: appTitleStyle(
+      context.watch<AppState>().appFont,
+      size: 9, weight: FontWeight.w800, color: AppColors.terracotta,
     )),
   );
 }
@@ -1064,10 +1064,10 @@ class _CalendarSearchScreenState extends State<CalendarSearchScreen> {
           controller: _searchCtrl,
           focusNode: _focusNode,
           onChanged: (v) => setState(() => _query = v),
-          style: GoogleFonts.dmSans(fontSize: 15, color: text),
+          style: appTitleStyle(state.appFont, size: 15, color: text),
           decoration: InputDecoration(
             hintText: 'Поиск событий и задач...',
-            hintStyle: GoogleFonts.dmSans(fontSize: 15,
+            hintStyle: appTitleStyle(state.appFont, size: 15,
                 color: isDark ? AppColors.darkTextDate : AppColors.lightTextDate),
             filled: true, fillColor: fieldBg,
             border: OutlineInputBorder(
@@ -1121,8 +1121,8 @@ class _CalendarSearchScreenState extends State<CalendarSearchScreen> {
                           )),
                         ),
                         const SizedBox(width: 10),
-                        Text(dayLabel(group.day), style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w700,
+                        Text(dayLabel(group.day), style: appTitleStyle(state.appFont,
+                          size: 13, weight: FontWeight.w700,
                           color: isToday ? AppColors.terracotta : text,
                         )),
                       ]),

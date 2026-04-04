@@ -74,7 +74,7 @@ class DeleteConfirmDialog extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 subtitle!.isEmpty ? 'Без названия' : subtitle!,
-                style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                style: appTitleStyle(appFont, size: 13, color: textSec),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -82,7 +82,7 @@ class DeleteConfirmDialog extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Это действие нельзя отменить.',
-                style: GoogleFonts.dmSans(fontSize: 13, color: textSec),
+                style: appTitleStyle(appFont, size: 13, color: textSec),
               ),
             ],
             const SizedBox(height: 20),
@@ -132,6 +132,7 @@ class _DialogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appFont = context.watch<AppState>().appFont;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -143,9 +144,10 @@ class _DialogButton extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+          style: appTitleStyle(
+            appFont,
+            size: 13,
+            weight: bold ? FontWeight.w700 : FontWeight.w600,
             color: textColor,
           ),
         ),
@@ -292,6 +294,7 @@ class ExpandCollapseBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appFont = context.watch<AppState>().appFont;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
@@ -311,10 +314,7 @@ class ExpandCollapseBar extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   allExpanded ? 'Свернуть все' : 'Развернуть все',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: AppColors.terracotta,
-                  ),
+                  style: appTitleStyle(appFont, size: 11, color: AppColors.terracotta),
                 ),
               ],
             ),
@@ -343,6 +343,7 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appFont = context.watch<AppState>().appFont;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -361,11 +362,7 @@ class CategoryChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               category.isEmpty ? '–' : category,
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
+              style: appTitleStyle(appFont, size: 11, weight: FontWeight.w700, color: color),
             ),
             const SizedBox(width: 4),
             Icon(

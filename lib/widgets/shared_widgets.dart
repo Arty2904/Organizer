@@ -129,6 +129,7 @@ class CategoryBadge extends StatelessWidget {
     final isEmpty = label.isEmpty;
     final color = isEmpty ? AppColors.catNone : AppColors.categoryColor(label);
     final display = isEmpty ? '–' : label.toUpperCase();
+    final appFont = context.watch<AppState>().appFont;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
@@ -137,10 +138,7 @@ class CategoryBadge extends StatelessWidget {
       ),
       child: Text(
         display,
-        style: GoogleFonts.dmSans(
-          fontSize: 8, fontWeight: FontWeight.w800,
-          color: color, letterSpacing: 0.5,
-        ),
+        style: appTitleStyle(appFont, size: 8, weight: FontWeight.w800, color: color),
       ),
     );
   }
@@ -171,6 +169,7 @@ class ViewSwitcher extends StatelessWidget {
     final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final appFont = context.watch<AppState>().appFont;
 
     return GestureDetector(
       onTapDown: (details) async {
@@ -204,9 +203,10 @@ class ViewSwitcher extends StatelessWidget {
                         color: sel ? AppColors.terracotta : textSec),
                     const SizedBox(width: 10),
                     Text(_labels[v]!,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                      style: appTitleStyle(
+                        appFont,
+                        size: 13,
+                        weight: sel ? FontWeight.w700 : FontWeight.w400,
                         color: sel ? AppColors.terracotta : text,
                       ),
                     ),
@@ -241,6 +241,7 @@ class AppSearchBar extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDark ? const Color(0x4DE6AF78) : const Color(0x73785028);
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final appFont = context.watch<AppState>().appFont;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       decoration: BoxDecoration(
@@ -258,12 +259,12 @@ class AppSearchBar extends StatelessWidget {
           Expanded(
             child: TextField(
               onChanged: onChanged,
-              style: GoogleFonts.dmSans(fontSize: 14, color: textColor),
+              style: appTitleStyle(appFont, size: 14, color: textColor),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 filled: false,
                 hintText: hint,
-                hintStyle: GoogleFonts.dmSans(fontSize: 14, color: iconColor),
+                hintStyle: appTitleStyle(appFont, size: 14, color: iconColor),
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
@@ -294,6 +295,7 @@ class CategoryFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolveColor = colorResolver ?? AppColors.categoryColor;
+    final appFont = context.watch<AppState>().appFont;
     return SizedBox(
       height: 32,
       child: ListView.separated(
@@ -333,9 +335,10 @@ class CategoryFilterRow extends StatelessWidget {
                   ],
                   Text(
                     cat.isEmpty ? '–' : cat,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    style: appTitleStyle(
+                      appFont,
+                      size: 11,
+                      weight: active ? FontWeight.w700 : FontWeight.w500,
                       color: active
                           ? Colors.white
                           : (Theme.of(context).brightness == Brightness.dark
@@ -623,8 +626,8 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
                   GestureDetector(
                     onTap: () => Navigator.pop(
                         context, DateTime(_year, _month, _day, _hour, _minute)),
-                    child: Text('Готово', style: GoogleFonts.dmSans(
-                        fontSize: 14, fontWeight: FontWeight.w600,
+                    child: Text('Готово', style: appTitleStyle(appFont,
+                        size: 14, weight: FontWeight.w600,
                         color: AppColors.terracotta)),
                   ),
                 ],

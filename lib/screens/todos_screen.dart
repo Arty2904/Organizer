@@ -1018,9 +1018,10 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
                               Expanded(
                                 child: Text(
                                   tag.isEmpty ? '–' : tag,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 12,
-                                    fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+                                  style: appTitleStyle(
+                                    state.appFont,
+                                    size: 12,
+                                    weight: sel ? FontWeight.w700 : FontWeight.w400,
                                     color: sel ? tColor : text,
                                   ),
                                 ),
@@ -1131,7 +1132,9 @@ Future<void> _pickReminder() async {
   }
 
   void _showRepeatPicker() {
-    final isDark = context.read<AppState>().darkMode;
+    final appState = context.read<AppState>();
+    final isDark = appState.darkMode;
+    final appFont = appState.appFont;
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
@@ -1200,19 +1203,21 @@ Future<void> _pickReminder() async {
                         child: Row(children: [
                           if (!isCustom)
                             Expanded(child: Text(staticLabels[opt]!,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
+                              style: appTitleStyle(
+                                appFont,
+                                size: 14,
+                                weight: sel ? FontWeight.w600 : FontWeight.w400,
                                 color: sel ? AppColors.terracotta : text,
-                                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                               )))
                           else
                             Expanded(child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Через ', style: GoogleFonts.dmSans(
-                                  fontSize: 14,
+                                Text('Через ', style: appTitleStyle(
+                                  appFont,
+                                  size: 14,
+                                  weight: sel ? FontWeight.w600 : FontWeight.w400,
                                   color: sel ? AppColors.terracotta : text,
-                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                                 )),
                                 IntrinsicWidth(
                                   child: TextField(
@@ -1220,15 +1225,17 @@ Future<void> _pickReminder() async {
                                     focusNode: _customDaysFocus,
                                     keyboardType: TextInputType.number,
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
+                                    style: appTitleStyle(
+                                      appFont,
+                                      size: 14,
+                                      weight: FontWeight.w700,
                                       color: AppColors.terracotta,
                                     ),
                                     decoration: InputDecoration(
                                       hintText: 'N',
-                                      hintStyle: GoogleFonts.dmSans(
-                                        fontSize: 14, color: textSec),
+                                      hintStyle: appTitleStyle(
+                                        appFont,
+                                        size: 14, color: textSec),
                                       isDense: true,
                                       contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 4, vertical: 2),
@@ -1254,10 +1261,11 @@ Future<void> _pickReminder() async {
                                     onSubmitted: (_) => Navigator.pop(ctx),
                                   ),
                                 ),
-                                Text(' дней', style: GoogleFonts.dmSans(
-                                  fontSize: 14,
+                                Text(' дней', style: appTitleStyle(
+                                  appFont,
+                                  size: 14,
+                                  weight: sel ? FontWeight.w600 : FontWeight.w400,
                                   color: sel ? AppColors.terracotta : text,
-                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                                 )),
                               ],
                             )),
@@ -1493,8 +1501,7 @@ Future<void> _pickReminder() async {
                       const SizedBox(width: 4),
                       Text(
                         _reminderDate != null ? fmtReminder(_reminderDate!) : 'Напоминание',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
+                        style: appTitleStyle(state.appFont, size: 12,
                           color: _reminderDate != null ? AppColors.terracotta : textSec,
                         ),
                       ),
@@ -1516,8 +1523,7 @@ Future<void> _pickReminder() async {
                       const SizedBox(width: 4),
                       Text(
                         _repeat != RepeatInterval.none ? _repeatLabel : 'Повтор',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
+                        style: appTitleStyle(state.appFont, size: 12,
                           color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
                         ),
                       ),
@@ -1530,8 +1536,8 @@ Future<void> _pickReminder() async {
                   onTap: _save,
                   child: Text(
                     'Готово',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.terracotta,
+                    style: appTitleStyle(state.appFont, size: 14,
+                      weight: FontWeight.w600, color: AppColors.terracotta,
                     ),
                   ),
                 ),
