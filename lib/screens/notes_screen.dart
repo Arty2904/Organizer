@@ -60,7 +60,6 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isDark = state.darkMode;
     final notes = state.filteredNotes(_query);
     final v = state.notesView;
 
@@ -645,7 +644,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.note?.title ?? '');
     _bodyCtrl = TextEditingController(text: widget.note?.body ?? '');
-    _category = widget.note?.category ?? widget.initialCategory ?? '';
+    _category = widget.note?.category ?? widget.initialCategory;
     _colorIndex = widget.note?.colorIndex ?? 0;
   }
 

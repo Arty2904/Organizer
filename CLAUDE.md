@@ -7,6 +7,7 @@
 - **SharedPreferences** for persistence
 - **uuid** for generating IDs
 - **intl** for date formatting (`initializeDateFormatting('ru', null)` called in `main()`)
+- **reorderable_grid_view** for drag-and-drop in grid view (manual sort mode)
 
 ## Project Structure
 ```
@@ -25,8 +26,11 @@ lib/
     home_shell.dart          # Main scaffold: AppBar, IndexedStack, _BottomNav,
                              # _BulkActionBar, _OptionsButton, _OptionsDropDown
     notes_screen.dart        # Notes list + NoteEditorScreen
+                             # _NoteGrid: ReorderableGridView (manual) / static 2-col (date)
     events_screen.dart       # Events list + EventEditorDialog
+                             # _EventsMasonryGrid: ReorderableGridView (manual) / static 2-col (date)
     todos_screen.dart        # Todos list + TodoEditorDialog
+                             # _TodosMasonryGrid: ReorderableGridView (manual) / static 2-col (date)
     calendar_screen.dart     # Calendar view + CalendarSearchScreen
                              # + repeat helpers (top-level functions)
     folder_manager_screen.dart  # Folder CRUD per section
@@ -260,9 +264,59 @@ Re-exports `shared_widgets.dart` — screens only need to import `common_widgets
 - `ExpandCollapseBar` — «Развернуть все» / «Свернуть все» row above lists
 - `CategoryChip` — folder/category selector chip for editors
 - `ColorPickerGrid` — 21-color + reset picker grid; `large` param toggles dialog vs inline size
-- `DraggableListCard` — LongPressDraggable + DragTarget wrapper for manual sort in list view
+- `DraggableListCard` — LongPressDraggable + DragTarget for manual sort in list/compact view.
+  Requires `ValueNotifier<String?> dragState` shared across all cards in the list.
+  Features: `HapticFeedback.mediumImpact()` on drag start, `lightImpact()` on drop,
+  `Transform.scale(1.03)` on feedback widget, `delay: 300ms`, `Curves.easeOutCubic` animations.
 
-## Key Conventions
+## Grid View (view 2)
+
+### Fixed card height
+All grid cards are **148px tall** across all three entities. This eliminates column height imbalance and enables smooth `ReorderableGridView` animation.
+
+### Drag in grid (manual sort only)
+- Uses `ReorderableGridView.count` from `reorderable_grid_view` package
+- `childAspectRatio: colWidth / 148` — always precise, no overflow
+- `dragWidgetBuilder` applies `Transform.scale(1.03)` + `Opacity(0.92)` for lift effect
+- `onReorder` calls `reorderNoteById` / `reorderEventById` / `reorderTodoById`
+- When sort = `'date'`, `ReorderableGridView` is replaced by a plain 2-column static layout
+
+### Note grid card (`_GridCard`, `_NoteCard` grid branch)
+- Title: 1 line. Body: `maxLines: 4`. No date, no dot.
+
+### Event grid card (`_EventGridCard`)
+- Title: `maxLines: 2`. Body: `maxLines: 4`.
+- Reminder/repeat chip always pinned to bottom via `Positioned(bottom: 10)`.
+  Shows date only (no repeat text) when `reminderDate != null`; shows repeat label only when no date.
+- Content area uses `Positioned` with explicit bottom offset (`hasChip ? 38 : 12`) so chip never overlaps text.
+
+### Todo grid card (`_TodoCard` view 2 branch — separate early return)
+- Always shows title (name). If name is empty — top area is blank (no fallback text).
+- Progress bar shown when `group.total > 0`.
+- Tasks: exactly `maxItems` rows computed from available height before render — no overflow possible.
+  Formula: `available = 124 - chipReserve - titleH - progressH`, `maxItems = (available / 18).floor().clamp(0, 4)`.
+- Each task row is `SizedBox(height: 18)` — fixed, no padding.
+- Reminder/repeat chip pinned to bottom via `Positioned(bottom: 10)`. Grid builds a separate
+  `gridChip` widget (date only, no repeat text alongside date) distinct from the list `reminderChip`.
+- Layout uses `Stack` + `Positioned` (not Column) to guarantee no RenderFlex overflow.
+
+### Drag pattern — list & compact views
+All three screens use `DraggableListCard` from `common_widgets.dart` (not `ReorderableListView`).
+Each screen State holds `final ValueNotifier<String?> _listDragState = ValueNotifier(null)` — disposed in `dispose()`.
+Pattern:
+```dart
+if (sort != 'manual') return swipableOrPlain;
+return DraggableListCard(
+  key: ValueKey(item.id),
+  itemId: item.id,
+  dragState: _listDragState,
+  onReorder: (f, t) => state.reorderXxxById(f, t),
+  child: card,
+);
+```
+
+### Todo default name on save
+When `_nameCtrl` is empty: `validItems.length == 1 ? 'Задача' : 'Список'`.
 - Colors always from AppColors — never hardcoded hex
 - `context.watch<AppState>()` for reactive reads, `context.read<AppState>()` in callbacks/initState
 - IndexedStack — all 4 tabs always mounted
@@ -280,6 +334,10 @@ Re-exports `shared_widgets.dart` — screens only need to import `common_widgets
 - `eventsInMonth()` ignores repeat — for calendar dots/lists use `eventOccurrenceDaysInMonth()` helpers
 - Card color palette — single source is `kCardColors` in `card_colors.dart`. Do not define separate per-screen lists. `kNoteColors`/`kTodoColors`/`kEventColors` are aliases; prefer `kCardColors` in new code.
 - Swipe-to-delete, empty states, screen headers, expand/collapse bar, category chip, color picker grid, draggable list cards — use components from `common_widgets.dart`, not inline duplicates
+- Grid cards are fixed 148px — never use `mainAxisSize: MainAxisSize.min` or unbounded Column inside a `Positioned` with both `top` and `bottom` set; it causes RenderFlex overflow. Use `height:` on `Positioned` or pre-compute item counts.
+- `ReorderableGridView` requires all children to have the same aspect ratio — always derive `childAspectRatio` from `colWidth / 148`.
+- `DraggableListCard` needs a shared `ValueNotifier<String?>` per screen — never create it inside `build()`, always declare as State field and dispose.
+- Todo grid chip (`gridChip`) is built separately from the list `reminderChip` — they differ: grid shows date only, list shows date + repeat.
 
 ## GitHub
 - Repo: `Arty2904/Organizer`

@@ -321,7 +321,6 @@ class _TodoCardState extends State<_TodoCard> {
 
     // ── Compact view (view 3) — expandable rows ──
     if (view == 3) {
-      final items = expanded ? group.items : [];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -449,8 +448,10 @@ class _TodoCardState extends State<_TodoCard> {
     // ── List & Grid view ──
     // reminder/repeat chip — показываем в list и grid (не в compact)
     final repeatStr = repeatLabel(group.repeat, group.customDays);
-    Widget? reminderChip;
+    Widget reminderChip = const SizedBox.shrink();
+    bool hasReminderChip = false;
     if (group.reminderDate != null) {
+      hasReminderChip = true;
       reminderChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -480,6 +481,7 @@ class _TodoCardState extends State<_TodoCard> {
         ),
       );
     } else if (repeatStr.isNotEmpty) {
+      hasReminderChip = true;
       reminderChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -505,8 +507,10 @@ class _TodoCardState extends State<_TodoCard> {
       final hasTitle = group.name.trim().isNotEmpty;
 
       // Чип для grid — только дата, без периодичности
-      Widget? gridChip;
+      Widget gridChip = const SizedBox.shrink();
+      bool hasChip = false;
       if (group.reminderDate != null) {
+        hasChip = true;
         gridChip = Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -529,6 +533,7 @@ class _TodoCardState extends State<_TodoCard> {
           ),
         );
       } else if (repeatStr.isNotEmpty) {
+        hasChip = true;
         gridChip = Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -548,7 +553,6 @@ class _TodoCardState extends State<_TodoCard> {
           ),
         );
       }
-      final hasChip = gridChip != null;
 
       // Точный подсчёт доступного места под задачи
       // Карточка 148, паддинг top 12, паддинг bottom 12
@@ -667,7 +671,7 @@ class _TodoCardState extends State<_TodoCard> {
                 if (hasChip)
                   Positioned(
                     bottom: 10, left: 12, right: 12,
-                    child: gridChip!,
+                    child: gridChip,
                   ),
                 // Тег папки — верхний правый угол (только если есть заголовок)
                 if (showTag && hasTitle && group.category.isNotEmpty)
@@ -745,9 +749,9 @@ class _TodoCardState extends State<_TodoCard> {
                   ),
                 ],
               ),
-              if (reminderChip != null) ...[
+              if (hasReminderChip) ...[
                 const SizedBox(height: 8),
-                reminderChip!,
+                reminderChip,
               ],
             ],
           ),
@@ -853,9 +857,9 @@ class _TodoCardState extends State<_TodoCard> {
                   if (group.items.length > 3)
                     const SizedBox(height: 12),
                 ],
-                if (reminderChip != null) ...[
+                if (hasReminderChip) ...[
                   const SizedBox(height: 8),
-                  reminderChip!,
+                  reminderChip,
                 ],
               ],
             ),
@@ -939,7 +943,7 @@ class _TodoEditorDialogState extends State<TodoEditorDialog> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.group?.name ?? '');
-    _category = widget.group?.category ?? widget.initialCategory ?? '';
+    _category = widget.group?.category ?? widget.initialCategory;
     final items = widget.group?.items ?? [TodoItem(text: '')];
     _itemCtrls = items.map((i) => TextEditingController(text: i.text)).toList();
     _itemDone = items.map((i) => i.done).toList();
@@ -1310,11 +1314,6 @@ Future<void> _pickReminder() async {
     Navigator.pop(context);
   }
 
-  void _delete() {
-    if (widget.group != null) context.read<AppState>().deleteTodo(widget.group!.id);
-    Navigator.pop(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -1324,7 +1323,6 @@ Future<void> _pickReminder() async {
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final textHint = isDark ? const Color(0x4DE6AF78) : const Color(0x6E785028);
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
-    final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
     final mq = MediaQuery.of(context);
     final keyboardHeight = mq.viewInsets.bottom;

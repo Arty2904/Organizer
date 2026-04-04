@@ -60,7 +60,6 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isDark = state.darkMode;
     final events = state.filteredEvents(_query);
     final v = state.eventsView;
 
@@ -664,7 +663,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     final e = widget.event;
     _titleCtrl = TextEditingController(text: e?.title ?? '');
     _bodyCtrl = TextEditingController(text: e?.body ?? '');
-    _category = e?.category ?? widget.initialCategory ?? '';
+    _category = e?.category ?? widget.initialCategory;
     _reminderDate = e?.reminderDate;
     _repeat = e?.repeat ?? RepeatInterval.none;
     _customDays = e?.customDays;
@@ -997,7 +996,6 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final textHint = isDark ? const Color(0x4DE6AF78) : const Color(0x6E785028);
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
-    final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCardAlt;
 
     return GestureDetector(
       onTap: () { if (_tagMenuOpen) _hideTagMenu(); },
