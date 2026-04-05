@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
@@ -11,17 +12,6 @@ import 'events_screen.dart';
 import 'todos_screen.dart';
 
 // ─── Helpers ──────────────────────────────────────────────
-// Russian nominative month names for calendar headers (март 2026)
-const _ruMonthsFull = [
-  'январь','февраль','март','апрель','май','июнь',
-  'июль','август','сентябрь','октябрь','ноябрь','декабрь',
-];
-// Abbreviated for mini-month labels in year view
-const _ruMonthsShort = [
-  'янв','фев','мар','апр','май','июнь',
-  'июль','авг','сен','окт','ноя','дек',
-];
-
 
 // ─── Repeat helpers ───────────────────────────────────────
 
@@ -229,7 +219,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       child: Row(children: [
                         Icon(Icons.search_rounded, size: 16, color: AppColors.terracotta),
                         const SizedBox(width: 10),
-                        Text('Поиск', style: appTitleStyle(state.appFont, size: 13, color: text)),
+                        Text(context.read<AppState>().s.search, style: appTitleStyle(context.read<AppState>().appFont, size: 13, color: text)),
                       ]),
                     ),
                   ),
@@ -259,10 +249,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _onTitleTap() => setState(() => _yearMode = !_yearMode);
 
   // Build the title string
-  String get _titleText {
+  String _titleText(S s) {
     if (_yearMode) return '$_displayYear';
     final m = _displayMonth;
-    return '${_ruMonthsFull[m.month - 1]} ${m.year}';
+    return '${s.monthsCapital[m.month - 1]} ${m.year}';
   }
 
   @override
@@ -285,9 +275,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onTap: _onTitleTap,
               behavior: HitTestBehavior.opaque,
               child: Text(
-                _titleText,
-                style: appTitleStyle(state.appFont,
-                    size: 22, weight: FontWeight.w700, color: text),
+                _titleText(state.s),
+                style: GoogleFonts.dmSans(
+                    fontSize: 22, fontWeight: FontWeight.w700, color: text),
               ),
             ),
           ),
@@ -382,6 +372,7 @@ class _YearGrid extends StatelessWidget {
     final now    = DateTime.now();
     final bg     = isDark ? AppColors.darkBg2 : AppColors.lightBg2;
     final cardBg = isDark ? AppColors.darkBg  : AppColors.lightBg;
+    final s      = context.watch<AppState>().s;
 
     return Container(
       color: bg,
@@ -401,7 +392,7 @@ class _YearGrid extends StatelessWidget {
                         year: year, month: month, now: now,
                         isDark: isDark, text: text, textSec: textSec,
                         cardBg: cardBg,
-                        monthName: _ruMonthsShort[month - 1],
+                        monthName: s.monthsCapital[month - 1],
                         selectedDay: selectedDay,
                         onDayTap: onDayTap,
                       ),
@@ -434,10 +425,11 @@ class _MiniMonth extends StatelessWidget {
     required this.selectedDay, required this.onDayTap,
   });
 
-  static const _wd = ['П','В','С','Ч','П','С','В'];
 
   @override
   Widget build(BuildContext context) {
+    final s           = context.watch<AppState>().s;
+    final wd          = s.weekdays1;
     final firstDay    = DateTime(year, month, 1);
     final startOffset = (firstDay.weekday - 1) % 7;
     final daysInMonth = DateUtils.getDaysInMonth(year, month);
@@ -454,13 +446,17 @@ class _MiniMonth extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 2),
-            child: Text(monthName, style: GoogleFonts.dmSans(
-              fontSize: 11, fontWeight: FontWeight.w700,
-              color: isCurMonth ? AppColors.terracotta : text,
-            )),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(monthName, style: GoogleFonts.dmSans(
+                fontSize: 11, fontWeight: FontWeight.w700,
+                color: isCurMonth ? AppColors.terracotta : text,
+              )),
+            ),
           ),
           Row(children: List.generate(7, (i) => Expanded(
-            child: Text(_wd[i], textAlign: TextAlign.center,
+            child: Text(wd[i], textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
                 fontSize: 7, fontWeight: FontWeight.w600,
                 color: i >= 5
@@ -636,18 +632,21 @@ class _MonthDetail extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
               child: Row(
-                children: ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) =>
-                  Expanded(child: Padding(
+                children: List.generate(7, (i) {
+                  final days = state.s.weekdaysShort;
+                  final d = days[i];
+                  final isWknd = i >= 5;
+                  return Expanded(child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5),
                     child: Text(d, textAlign: TextAlign.center,
-                      style: appTitleStyle(state.appFont,
-                        size: 10, weight: FontWeight.w700,
-                        color: d == 'Сб' || d == 'Вс'
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10, fontWeight: FontWeight.w700,
+                        color: isWknd
                             ? AppColors.terracotta.withValues(alpha: 0.6)
                             : textSec,
                       )),
-                  )),
-                ).toList(),
+                  ));
+                }),
               ),
             ),
             // Day grid
@@ -715,7 +714,7 @@ class _MonthDetail extends StatelessWidget {
                 if (!isSelToday) {
                   if (dayEvents.isEmpty && dayTodos.isEmpty) {
                     return Center(child: Text(
-                      'Нет событий',
+                      state.s.noEvents,
                       style: appTitleStyle(state.appFont, size: 13, color: textSec),
                     ));
                   }
@@ -723,7 +722,7 @@ class _MonthDetail extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                     children: [
                       if (dayEvents.isNotEmpty) ...[
-                        _ListHeader('СОБЫТИЯ', isDark),
+                        _ListHeader(state.s.sectionEvents, isDark),
                         ...dayEvents.map((e) {
                           // For repeating events show time on the selected day
                           final effDate = e.repeat != RepeatInterval.none && e.reminderDate != null
@@ -743,7 +742,7 @@ class _MonthDetail extends StatelessWidget {
                       ],
                       if (dayTodos.isNotEmpty) ...[
                         if (dayEvents.isNotEmpty) const SizedBox(height: 12),
-                        _ListHeader('ЗАДАЧИ', isDark),
+                        _ListHeader(state.s.sectionTodos, isDark),
                         ...dayTodos.map((t) => _CalTodoTile(
                           group: t, isDark: isDark,
                           onTap: () => showDialog(
@@ -759,7 +758,7 @@ class _MonthDetail extends StatelessWidget {
                 // Режим сегодня/нет выбора — Сегодня + Ближайшие
                 if (todayEvents.isEmpty && upcomingEvents.isEmpty) {
                   return Center(child: Text(
-                    'Нет событий',
+                    state.s.noEvents,
                     style: appTitleStyle(state.appFont, size: 13, color: textSec),
                   ));
                 }
@@ -767,7 +766,7 @@ class _MonthDetail extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   children: [
                     if (todayEvents.isNotEmpty) ...[
-                      _ListHeader('СЕГОДНЯ', isDark),
+                      _ListHeader(state.s.sectionToday, isDark),
                       ...todayEvents.map((ee) => _CalEventTile(
                         event: ee.event, isDark: isDark, showDate: false,
                         effectiveDate: ee.date,
@@ -780,7 +779,7 @@ class _MonthDetail extends StatelessWidget {
                     ],
                     if (upcomingEvents.isNotEmpty) ...[
                       if (todayEvents.isNotEmpty) const SizedBox(height: 12),
-                      _ListHeader('БЛИЖАЙШИЕ', isDark),
+                      _ListHeader(state.s.sectionUpcoming, isDark),
                       ...upcomingEvents.map((ee) => _CalEventTile(
                         event: ee.event, isDark: isDark, showDate: true,
                         effectiveDate: ee.date,
@@ -865,7 +864,7 @@ class _CalEventTile extends StatelessWidget {
                   style: GoogleFonts.dmSans(
                       fontSize: 11, color: AppColors.terracotta)),
           ])),
-          if (repeatLabel(event.repeat, event.customDays).isNotEmpty)
+          if (repeatLabel(event.repeat, event.customDays, s: context.read<AppState>().s).isNotEmpty)
             Icon(Icons.repeat_rounded, size: 14, color: textSec),
         ]),
       ),
@@ -1041,13 +1040,12 @@ class _CalendarSearchScreenState extends State<CalendarSearchScreen> {
     final todayD = DateTime(today.year, today.month, today.day);
 
     String dayLabel(DateTime d) {
-      if (_sameDay(d, todayD)) return 'Сегодня';
-      if (_sameDay(d, todayD.add(const Duration(days: 1)))) return 'Завтра';
-      const ruWeekdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-      const ruMonths   = ['янв', 'фев', 'мар', 'апр', 'май', 'июн',
-                          'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-      final wd = ruWeekdays[d.weekday - 1];
-      final mo = ruMonths[d.month - 1];
+      if (_sameDay(d, todayD)) return state.s.today;
+      if (_sameDay(d, todayD.add(const Duration(days: 1)))) return state.s.tomorrow;
+      final weekdays = state.s.weekdaysShort;
+      final months   = state.s.monthsLower;
+      final wd = weekdays[d.weekday - 1];
+      final mo = months[d.month - 1];
       return '${d.day} $mo, $wd';
     }
 
@@ -1066,7 +1064,7 @@ class _CalendarSearchScreenState extends State<CalendarSearchScreen> {
           onChanged: (v) => setState(() => _query = v),
           style: appTitleStyle(state.appFont, size: 15, color: text),
           decoration: InputDecoration(
-            hintText: 'Поиск событий и задач...',
+            hintText: state.s.searchAll,
             hintStyle: appTitleStyle(state.appFont, size: 15,
                 color: isDark ? AppColors.darkTextDate : AppColors.lightTextDate),
             filled: true, fillColor: fieldBg,
@@ -1089,7 +1087,7 @@ class _CalendarSearchScreenState extends State<CalendarSearchScreen> {
       ),
       body: groups.isEmpty
           ? Center(child: Text(
-              _query.isEmpty ? 'Нет предстоящих событий' : 'Ничего не найдено',
+              _query.isEmpty ? state.s.noUpcoming : state.s.noResults,
               style: GoogleFonts.dmSans(fontSize: 14, color: textSec),
             ))
           : ListView.builder(

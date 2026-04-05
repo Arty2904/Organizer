@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
@@ -66,7 +67,7 @@ class _EventsScreenState extends State<EventsScreen> {
     return Column(
       children: [
         ScreenHeader(
-          searchHint: 'Поиск событий...',
+          searchHint: state.s.searchEvents,
           onSearch: (q) => setState(() => _query = q),
           categories: state.eventCategories,
           selectedCategory: state.eventsFilter,
@@ -75,7 +76,7 @@ class _EventsScreenState extends State<EventsScreen> {
         ),
         Expanded(
           child: events.isEmpty
-              ? const EmptyState(icon: Icons.event_outlined, label: 'Нет событий')
+              ? EmptyState(icon: Icons.event_outlined, label: state.s.noEvents)
               : v == 1
                   ? _listView(context, events, state)
                   : v == 2
@@ -103,7 +104,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _EventCard(
                     event: event,
-                    showTag: state.eventsFilter == 'Все',
+                    showTag: state.eventsFilter == state.s.all,
                     view: 1,
                     expanded: _expandedIds.contains(event.id),
                     onToggleExpand: () => _toggleExpand(event.id),
@@ -124,7 +125,7 @@ class _EventsScreenState extends State<EventsScreen> {
                     itemId: event.id,
                     child: _EventCard(
                       event: event,
-                      showTag: state.eventsFilter == 'Все',
+                      showTag: state.eventsFilter == state.s.all,
                       view: 1,
                       expanded: _expandedIds.contains(event.id),
                       onToggleExpand: () => _toggleExpand(event.id),
@@ -236,7 +237,7 @@ class _EventsMasonryGrid extends StatelessWidget {
             itemId: e.id,
             child: _EventGridCard(
               event: e,
-              showTag: state.eventsFilter == 'Все',
+              showTag: state.eventsFilter == state.s.all,
               isDark: isDark,
               onTap: () => onOpenEditor(e),
             ),
@@ -253,7 +254,7 @@ class _EventsMasonryGrid extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: spacing),
             child: _EventGridCard(
               event: e,
-              showTag: state.eventsFilter == 'Все',
+              showTag: state.eventsFilter == state.s.all,
               isDark: isDark,
               onTap: () => onOpenEditor(e),
             ),
@@ -371,14 +372,14 @@ class _EventGridCard extends StatelessWidget {
                         if (event.reminderDate != null)
                           Flexible(
                             child: Text(
-                              formatDateTime(event.reminderDate),
+                              formatDateTime(event.reminderDate, s: state.s),
                               style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         if (event.repeat != RepeatInterval.none && event.reminderDate == null)
                           Text(
-                            repeatLabel(event.repeat, event.customDays),
+                            repeatLabel(event.repeat, event.customDays, s: state.s),
                             style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
                           ),
                       ],
@@ -447,7 +448,7 @@ class _EventCardState extends State<_EventCard> {
     final catColor = state.folderColor(event.category);
     final maxTasks = view == 2 ? 3 : event.tasks.length;
     final tasks = event.tasks.take(maxTasks).toList();
-    final repeatStr = repeatLabel(event.repeat, event.customDays);
+    final repeatStr = repeatLabel(event.repeat, event.customDays, s: state.s);
 
     if (view == 3) {
       return GestureDetector(
@@ -465,7 +466,7 @@ class _EventCardState extends State<_EventCard> {
               const SizedBox(width: 10),
               Expanded(child: Text(event.title, style: appTitleStyle(state.appFont, size: 13, weight: FontWeight.w600, color: textColor), overflow: TextOverflow.ellipsis)),
               if (event.reminderDate != null)
-                Text(formatDate(event.reminderDate!), style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
+                Text(formatDate(event.reminderDate!, s: state.s), style: GoogleFonts.dmSans(fontSize: 10, color: textSec)),
             ],
           ),
         ),
@@ -558,7 +559,7 @@ class _EventCardState extends State<_EventCard> {
                             Icon(Icons.notifications_outlined, size: 11, color: AppColors.terracotta),
                             const SizedBox(width: 4),
                             Text(
-                              formatDateTime(event.reminderDate),
+                              formatDateTime(event.reminderDate, s: state.s),
                               style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
                             ),
                             if (repeatStr.isNotEmpty) ...[
@@ -812,12 +813,12 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             RepeatInterval.yearly,
             RepeatInterval.custom,
           ];
-          const staticLabels = {
-            RepeatInterval.none:    'Не повторять',
-            RepeatInterval.daily:   'Каждый день',
-            RepeatInterval.weekly:  'Каждую неделю',
-            RepeatInterval.monthly: 'Каждый месяц',
-            RepeatInterval.yearly:  'Каждый год',
+          final staticLabels = {
+            RepeatInterval.none:    appState.s.repeatNone,
+            RepeatInterval.daily:   appState.s.repeatDaily,
+            RepeatInterval.weekly:  appState.s.repeatWeekly,
+            RepeatInterval.monthly: appState.s.repeatMonthly,
+            RepeatInterval.yearly:  appState.s.repeatYearly,
           };
 
           return Dialog(
@@ -830,7 +831,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                    child: Text('Повторять',
+                    child: Text(appState.s.repeatLabel,
                         style: appTitleStyle(context.read<AppState>().appFont,
                             size: 16, weight: FontWeight.w600, color: text)),
                   ),
@@ -873,7 +874,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                             Expanded(child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Через ', style: appTitleStyle(
+                                Text(appState.s.repeatEvery, style: appTitleStyle(
                                   appFont,
                                   size: 14,
                                   weight: sel ? FontWeight.w600 : FontWeight.w400,
@@ -893,7 +894,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                                       color: AppColors.terracotta,
                                     ),
                                     decoration: InputDecoration(
-                                      hintText: 'N',
+                                      hintText: appState.s.repeatDaysHint,
                                       hintStyle: appTitleStyle(
                                         appFont,
                                         size: 14,
@@ -927,7 +928,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                                     onSubmitted: (_) => Navigator.pop(ctx),
                                   ),
                                 ),
-                                Text(' дней', style: appTitleStyle(
+                                Text(appState.s.repeatDays, style: appTitleStyle(
                                   appFont,
                                   size: 14,
                                   weight: sel ? FontWeight.w600 : FontWeight.w400,
@@ -959,15 +960,16 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
   }
 
   String get _repeatLabel {
+    final s = context.read<AppState>().s;
     switch (_repeat) {
-      case RepeatInterval.none: return 'Не повторять';
-      case RepeatInterval.daily: return 'Каждый день';
-      case RepeatInterval.weekly: return 'Каждую неделю';
-      case RepeatInterval.monthly: return 'Каждый месяц';
-      case RepeatInterval.yearly: return 'Каждый год';
+      case RepeatInterval.none: return s.repeatNone;
+      case RepeatInterval.daily: return s.repeatDaily;
+      case RepeatInterval.weekly: return s.repeatWeekly;
+      case RepeatInterval.monthly: return s.repeatMonthly;
+      case RepeatInterval.yearly: return s.repeatYearly;
       case RepeatInterval.custom:
         final d = _customDays ?? int.tryParse(_customDaysCtrl.text);
-        return d != null ? 'Через $d дней' : 'Через N дней';
+        return d != null ? s.repeatCustom(d) : '${s.repeatEvery}N${s.repeatDays}';
     }
   }
 
@@ -976,7 +978,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     final customD = _repeat == RepeatInterval.custom ? int.tryParse(_customDaysCtrl.text) : null;
     if (widget.event != null) {
       widget.event!
-        ..title = _titleCtrl.text.trim().isEmpty ? 'Событие' : _titleCtrl.text.trim()
+        ..title = _titleCtrl.text.trim().isEmpty ? state.s.defaultEvent : _titleCtrl.text.trim()
         ..body = _bodyCtrl.text
         ..category = _category
         ..reminderDate = _reminderDate
@@ -987,7 +989,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
     } else {
       state.addEvent(AppEvent(
         id: const Uuid().v4(),
-        title: _titleCtrl.text.trim().isEmpty ? 'Событие' : _titleCtrl.text.trim(),
+        title: _titleCtrl.text.trim().isEmpty ? state.s.defaultEvent : _titleCtrl.text.trim(),
         body: _bodyCtrl.text,
         category: _category,
         reminderDate: _reminderDate,
@@ -1034,7 +1036,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                     style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
                     decoration: InputDecoration(
                       filled: false, border: InputBorder.none,
-                      hintText: 'Название события',
+                      hintText: state.s.eventTitle,
                       hintStyle: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: textHint),
                       contentPadding: EdgeInsets.zero, isDense: true,
                     ),
@@ -1108,7 +1110,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
               minLines: 5,
               decoration: InputDecoration(
                 filled: false, border: InputBorder.none,
-                hintText: 'Описание...',
+                hintText: state.s.eventBody,
                 hintStyle: contentStyle(state.contentFont, size: 13, color: textHint, height: 1.4),
                 contentPadding: EdgeInsets.zero, isDense: true,
               ),
@@ -1133,7 +1135,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _reminderDate != null ? formatDateTime(_reminderDate) : 'Напоминание',
+                        _reminderDate != null ? formatDateTime(_reminderDate, s: state.s) : state.s.reminder,
                         style: appTitleStyle(state.appFont, size: 12,
                           color: _reminderDate != null ? AppColors.terracotta : textSec,
                         ),
@@ -1162,7 +1164,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _repeat != RepeatInterval.none ? _repeatLabel : 'Повтор',
+                        _repeat != RepeatInterval.none ? _repeatLabel : state.s.repeat,
                         style: appTitleStyle(state.appFont, size: 12,
                           color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
                         ),
@@ -1175,7 +1177,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
                 GestureDetector(
                   onTap: _save,
                   child: Text(
-                    'Готово',
+                    state.s.done,
                     style: appTitleStyle(state.appFont, size: 14,
                       weight: FontWeight.w600, color: AppColors.terracotta,
                     ),

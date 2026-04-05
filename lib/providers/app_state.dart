@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_strings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/models.dart';
@@ -18,6 +19,11 @@ class AppState extends ChangeNotifier {
 
   String _contentFont = 'dm_sans';
   String get contentFont => _contentFont;
+
+  // Locale
+  String _locale = 'ru';
+  String get locale => _locale;
+  S get s => S.of(_locale);
 
   // Default reminder offset in minutes (how early to notify before event)
   int _reminderOffsetMinutes = 30;
@@ -319,6 +325,7 @@ class AppState extends ChangeNotifier {
     _appFont = prefs.getString('appFont') ?? 'fraunces';
     _contentFont = prefs.getString('contentFont') ?? 'dm_sans';
     _reminderOffsetMinutes = prefs.getInt('reminderOffsetMinutes') ?? 30;
+    _locale = prefs.getString('locale') ?? systemLocale();
     _notesView = prefs.getInt('notesView') ?? 1;
     _todosView = prefs.getInt('todosView') ?? 1;
     _eventsView = prefs.getInt('eventsView') ?? 1;
@@ -461,6 +468,7 @@ class AppState extends ChangeNotifier {
     await prefs.setString('appFont', _appFont);
     await prefs.setString('contentFont', _contentFont);
     await prefs.setInt('reminderOffsetMinutes', _reminderOffsetMinutes);
+    await prefs.setString('locale', _locale);
     await prefs.setString('notes', jsonEncode(notes.map((n) => n.toJson()).toList()));
     await prefs.setString('todos', jsonEncode(todos.map((t) => t.toJson()).toList()));
     await prefs.setString('events', jsonEncode(events.map((e) => e.toJson()).toList()));
@@ -506,6 +514,12 @@ class AppState extends ChangeNotifier {
 
   void setUserName(String name) {
     _userName = name;
+    _save();
+    notifyListeners();
+  }
+
+  void setLocale(String locale) {
+    _locale = locale;
     _save();
     notifyListeners();
   }

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
@@ -58,7 +59,7 @@ class _TodosScreenState extends State<TodosScreen> {
     return Column(
       children: [
         ScreenHeader(
-          searchHint: 'Поиск задач...',
+          searchHint: state.s.searchTodos,
           onSearch: (q) => setState(() => _query = q),
           categories: state.todoCategories,
           selectedCategory: state.todosFilter,
@@ -67,7 +68,7 @@ class _TodosScreenState extends State<TodosScreen> {
         ),
         Expanded(
           child: todos.isEmpty
-              ? const EmptyState(icon: Icons.checklist_rounded, label: 'Нет дел')
+              ? EmptyState(icon: Icons.checklist_rounded, label: state.s.noTodos)
               : v == 1
                   ? _listView(context, todos, state, isDark)
                   : v == 2
@@ -108,7 +109,7 @@ class _TodosScreenState extends State<TodosScreen> {
                   onDelete: () => state.deleteTodo(todo.id),
                   child: _TodoCard(
                     group: todo,
-                    showTag: state.todosFilter == 'Все',
+                    showTag: state.todosFilter == state.s.all,
                     view: 1,
                     expanded: _expandedIds.contains(todo.id),
                     onToggleExpand: () => _toggleExpand(todo.id),
@@ -197,7 +198,7 @@ class _TodosMasonryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final state   = context.watch<AppState>();
     final todos   = state.filteredTodos('');
-    final showTag = state.todosFilter == 'Все';
+    final showTag = state.todosFilter == state.s.all;
 
     return LayoutBuilder(builder: (ctx, constraints) {
       const double spacing = 10;
@@ -447,7 +448,7 @@ class _TodoCardState extends State<_TodoCard> {
 
     // ── List & Grid view ──
     // reminder/repeat chip — показываем в list и grid (не в compact)
-    final repeatStr = repeatLabel(group.repeat, group.customDays);
+    final repeatStr = repeatLabel(group.repeat, group.customDays, s: state.s);
     Widget reminderChip = const SizedBox.shrink();
     bool hasReminderChip = false;
     if (group.reminderDate != null) {
@@ -465,7 +466,7 @@ class _TodoCardState extends State<_TodoCard> {
             const SizedBox(width: 4),
             Flexible(
               child: Text(
-                formatDateTime(group.reminderDate),
+                formatDateTime(group.reminderDate, s: state.s),
                 style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -524,7 +525,7 @@ class _TodoCardState extends State<_TodoCard> {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  formatDateTime(group.reminderDate),
+                  formatDateTime(group.reminderDate, s: state.s),
                   style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.terracotta, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1119,15 +1120,16 @@ Future<void> _pickReminder() async {
   }
 
   String get _repeatLabel {
+    final s = context.read<AppState>().s;
     switch (_repeat) {
-      case RepeatInterval.none: return 'Не повторять';
-      case RepeatInterval.daily: return 'Каждый день';
-      case RepeatInterval.weekly: return 'Каждую неделю';
-      case RepeatInterval.monthly: return 'Каждый месяц';
-      case RepeatInterval.yearly: return 'Каждый год';
+      case RepeatInterval.none: return s.repeatNone;
+      case RepeatInterval.daily: return s.repeatDaily;
+      case RepeatInterval.weekly: return s.repeatWeekly;
+      case RepeatInterval.monthly: return s.repeatMonthly;
+      case RepeatInterval.yearly: return s.repeatYearly;
       case RepeatInterval.custom:
         final d = _customDays ?? int.tryParse(_customDaysCtrl.text);
-        return d != null ? 'Через $d дней' : 'Через N дней';
+        return d != null ? s.repeatCustom(d) : '${s.repeatEvery}N${s.repeatDays}';
     }
   }
 
@@ -1153,12 +1155,12 @@ Future<void> _pickReminder() async {
             RepeatInterval.yearly,
             RepeatInterval.custom,
           ];
-          const staticLabels = {
-            RepeatInterval.none:    'Не повторять',
-            RepeatInterval.daily:   'Каждый день',
-            RepeatInterval.weekly:  'Каждую неделю',
-            RepeatInterval.monthly: 'Каждый месяц',
-            RepeatInterval.yearly:  'Каждый год',
+          final staticLabels = {
+            RepeatInterval.none:    appState.s.repeatNone,
+            RepeatInterval.daily:   appState.s.repeatDaily,
+            RepeatInterval.weekly:  appState.s.repeatWeekly,
+            RepeatInterval.monthly: appState.s.repeatMonthly,
+            RepeatInterval.yearly:  appState.s.repeatYearly,
           };
 
           return Dialog(
@@ -1171,7 +1173,7 @@ Future<void> _pickReminder() async {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                    child: Text('Повторять',
+                    child: Text(appState.s.repeatLabel,
                         style: appTitleStyle(context.read<AppState>().appFont,
                             size: 16, weight: FontWeight.w600, color: text)),
                   ),
@@ -1213,7 +1215,7 @@ Future<void> _pickReminder() async {
                             Expanded(child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Через ', style: appTitleStyle(
+                                Text(appState.s.repeatEvery, style: appTitleStyle(
                                   appFont,
                                   size: 14,
                                   weight: sel ? FontWeight.w600 : FontWeight.w400,
@@ -1232,7 +1234,7 @@ Future<void> _pickReminder() async {
                                       color: AppColors.terracotta,
                                     ),
                                     decoration: InputDecoration(
-                                      hintText: 'N',
+                                      hintText: appState.s.repeatDaysHint,
                                       hintStyle: appTitleStyle(
                                         appFont,
                                         size: 14, color: textSec),
@@ -1261,7 +1263,7 @@ Future<void> _pickReminder() async {
                                     onSubmitted: (_) => Navigator.pop(ctx),
                                   ),
                                 ),
-                                Text(' дней', style: appTitleStyle(
+                                Text(appState.s.repeatDays, style: appTitleStyle(
                                   appFont,
                                   size: 14,
                                   weight: sel ? FontWeight.w600 : FontWeight.w400,
@@ -1297,7 +1299,7 @@ Future<void> _pickReminder() async {
         .where((e) => e.value.text.trim().isNotEmpty)
         .map((e) => TodoItem(text: e.value.text.trim(), done: _itemDone[e.key]))
         .toList();
-    final defaultName = validItems.length == 1 ? 'Задача' : 'Список';
+    final defaultName = validItems.length == 1 ? state.s.defaultTask : state.s.defaultList;
     if (widget.group != null) {
       widget.group!.name = _nameCtrl.text.trim().isEmpty ? defaultName : _nameCtrl.text.trim();
       widget.group!.category = _category;
@@ -1371,7 +1373,7 @@ Future<void> _pickReminder() async {
                             style: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: text),
                             decoration: InputDecoration(
                               filled: false, border: InputBorder.none,
-                              hintText: 'Название списка',
+                              hintText: state.s.todoTitle,
                               hintStyle: appTitleStyle(state.appFont, size: 20, weight: FontWeight.w600, color: textHint),
                               contentPadding: EdgeInsets.zero, isDense: true,
                             ),
@@ -1457,7 +1459,7 @@ Future<void> _pickReminder() async {
                         style: contentStyle(state.contentFont, size: 14, color: text, height: 1.6),
                         decoration: InputDecoration(
                           filled: false, border: InputBorder.none,
-                          hintText: 'Задача...',
+                          hintText: state.s.taskPlaceholder,
                           hintStyle: contentStyle(state.contentFont, size: 14, color: textHint, height: 1.6),
                         ),
                       ),
@@ -1500,7 +1502,7 @@ Future<void> _pickReminder() async {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _reminderDate != null ? fmtReminder(_reminderDate!) : 'Напоминание',
+                        _reminderDate != null ? fmtReminder(_reminderDate!) : state.s.reminder,
                         style: appTitleStyle(state.appFont, size: 12,
                           color: _reminderDate != null ? AppColors.terracotta : textSec,
                         ),
@@ -1522,7 +1524,7 @@ Future<void> _pickReminder() async {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _repeat != RepeatInterval.none ? _repeatLabel : 'Повтор',
+                        _repeat != RepeatInterval.none ? _repeatLabel : state.s.repeat,
                         style: appTitleStyle(state.appFont, size: 12,
                           color: _repeat != RepeatInterval.none ? AppColors.terracotta : textSec,
                         ),
@@ -1535,7 +1537,7 @@ Future<void> _pickReminder() async {
                 GestureDetector(
                   onTap: _save,
                   child: Text(
-                    'Готово',
+                    state.s.done,
                     style: appTitleStyle(state.appFont, size: 14,
                       weight: FontWeight.w600, color: AppColors.terracotta,
                     ),

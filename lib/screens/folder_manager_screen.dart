@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_theme.dart';
 import '../theme/card_colors.dart';
 import '../theme/font_helper.dart';
@@ -18,7 +19,6 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
   static const _appToUiTab = {1: 0, 2: 1, 3: 2};
-  static const _tabLabels = ['События', 'Заметки', 'Задачи'];
 
   @override
   void initState() {
@@ -56,14 +56,14 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: bg, surfaceTintColor: Colors.transparent,
-        title: Text('Папки', style: appTitleStyle(context.watch<AppState>().appFont, size: 15, weight: FontWeight.w600, color: text)),
+        title: Text(s.s.folders, style: appTitleStyle(s.appFont, size: 15, weight: FontWeight.w600, color: text)),
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: acc, unselectedLabelColor: sec,
           indicatorColor: acc, indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 12),
-          tabs: _tabLabels.map((l) => Tab(text: l)).toList(),
+          labelStyle: appTitleStyle(s.appFont, size: 12, weight: FontWeight.w700, color: acc),
+          unselectedLabelStyle: appTitleStyle(s.appFont, size: 12, color: sec),
+          tabs: [s.s.events, s.s.notes, s.s.todos].map((l) => Tab(text: l)).toList(),
         ),
       ),
       floatingActionButton: SizedBox(
@@ -96,16 +96,17 @@ class _FolderManagerScreenState extends State<FolderManagerScreen>
 void _showAddFolderDialog(BuildContext ctx, AppState state, int appTab,
     Color bg, Color bg2, Color text, Color sec, Color div, Color acc, bool isDark) {
   final ctrl = TextEditingController();
+  final s = state.s;
   showDialog(
     context: ctx,
     builder: (_) => AlertDialog(
       backgroundColor: bg,
-      title: Text('Новая папка', style: appTitleStyle(state.appFont, size: 17, weight: FontWeight.w600, color: text)),
+      title: Text(s.newFolder, style: appTitleStyle(state.appFont, size: 17, weight: FontWeight.w600, color: text)),
       content: TextField(
         controller: ctrl, autofocus: true,
         style: GoogleFonts.dmSans(fontSize: 14, color: text),
         decoration: InputDecoration(
-          hintText: 'Название...',
+          hintText: s.namePlaceholder,
           hintStyle: GoogleFonts.dmSans(fontSize: 14, color: sec),
           filled: true,
           fillColor: isDark ? AppColors.darkSearchBg : AppColors.lightSearchBg,
@@ -119,13 +120,13 @@ void _showAddFolderDialog(BuildContext ctx, AppState state, int appTab,
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx),
-            child: Text('Отмена', style: GoogleFonts.dmSans(color: sec))),
+            child: Text(s.cancel, style: GoogleFonts.dmSans(color: sec))),
         TextButton(
           onPressed: () {
             state.addFolder(appTab, ctrl.text);
             Navigator.pop(ctx);
           },
-          child: Text('Добавить', style: GoogleFonts.dmSans(
+          child: Text(s.add, style: GoogleFonts.dmSans(
             color: acc, fontWeight: FontWeight.w700)),
         ),
       ],
@@ -166,7 +167,7 @@ class _FolderTabState extends State<_FolderTab> {
   @override
   void dispose() { _ctrl.dispose(); _focus.dispose(); super.dispose(); }
 
-  bool _special(String f) => f == 'Все' || f == '';
+  bool _special(String f) => f == context.read<AppState>().s.all || f == '';
 
   Set<String> get _hidden {
     if (widget.appTab == 0) return widget.state.eventHidden;
@@ -209,7 +210,7 @@ class _FolderTabState extends State<_FolderTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Цвет папки', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
+              Text(context.read<AppState>().s.folderColor, style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 10, runSpacing: 10,
@@ -258,7 +259,7 @@ class _FolderTabState extends State<_FolderTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Удалить папку?', style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: widget.text)),
+              Text(context.read<AppState>().s.deleteFolder, style: appTitleStyle(context.watch<AppState>().appFont, size: 17, weight: FontWeight.w600, color: widget.text)),
               const SizedBox(height: 8),
               Text('Папка «$name» будет удалена. Связанные элементы станут без тега.',
                   style: GoogleFonts.dmSans(fontSize: 13, color: widget.sec)),
@@ -271,7 +272,7 @@ class _FolderTabState extends State<_FolderTab> {
                     decoration: BoxDecoration(
                       color: widget.bg2, borderRadius: BorderRadius.circular(12)),
                     alignment: Alignment.center,
-                    child: Text('Отмена', style: GoogleFonts.dmSans(
+                    child: Text(context.read<AppState>().s.cancel, style: GoogleFonts.dmSans(
                       fontSize: 13, fontWeight: FontWeight.w600, color: widget.sec)),
                   ),
                 )),
@@ -284,7 +285,7 @@ class _FolderTabState extends State<_FolderTab> {
                       color: Colors.red.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12)),
                     alignment: Alignment.center,
-                    child: Text('Удалить', style: GoogleFonts.dmSans(
+                    child: Text(context.read<AppState>().s.delete, style: GoogleFonts.dmSans(
                       fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                   ),
                 )),
@@ -303,7 +304,7 @@ class _FolderTabState extends State<_FolderTab> {
       children: [
         Expanded(
           child: widget.fullOrder.isEmpty
-              ? Center(child: Text('Нет папок',
+              ? Center(child: Text(context.read<AppState>().s.noFolders,
                   style: GoogleFonts.dmSans(fontSize: 14, color: widget.sec)))
               : ReorderableListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -429,7 +430,7 @@ class _FolderTabState extends State<_FolderTab> {
                                   const Icon(Icons.delete_outline_rounded,
                                       color: Colors.white, size: 20),
                                   const SizedBox(height: 2),
-                                  Text('Удалить', style: GoogleFonts.dmSans(
+                                  Text(context.read<AppState>().s.delete, style: GoogleFonts.dmSans(
                                     fontSize: 10, color: Colors.white,
                                     fontWeight: FontWeight.w600)),
                                 ],

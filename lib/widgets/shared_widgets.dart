@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
 import '../models/models.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 
 // ─── Page Fold Corner ─────────────────────────────────────
 /// Загнутый угол карточки — визуальный триггер разворачивания.
@@ -150,11 +151,6 @@ class ViewSwitcher extends StatelessWidget {
   final ValueChanged<int> onChanged;
   const ViewSwitcher({super.key, required this.current, required this.onChanged});
 
-  static const _labels = {
-    1: 'Крупный список',
-    2: 'Сетка',
-    3: 'Мелкий список',
-  };
   static const _icons = {
     1: Icons.view_agenda_rounded,
     2: Icons.grid_view_rounded,
@@ -169,7 +165,9 @@ class ViewSwitcher extends StatelessWidget {
     final textSec = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final appFont = context.watch<AppState>().appFont;
+    final state = context.watch<AppState>();
+    final appFont = state.appFont;
+    final labels = {1: state.s.viewList, 2: state.s.viewGrid, 3: state.s.viewCompact};
 
     return GestureDetector(
       onTapDown: (details) async {
@@ -202,7 +200,7 @@ class ViewSwitcher extends StatelessWidget {
                     Icon(_icons[v], size: 16,
                         color: sel ? AppColors.terracotta : textSec),
                     const SizedBox(width: 10),
-                    Text(_labels[v]!,
+                    Text(labels[v]!,
                       style: appTitleStyle(
                         appFont,
                         size: 13,
@@ -296,6 +294,7 @@ class CategoryFilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolveColor = colorResolver ?? AppColors.categoryColor;
     final appFont = context.watch<AppState>().appFont;
+    final allLabel = context.watch<AppState>().s.all;
     return SizedBox(
       height: 32,
       child: ListView.separated(
@@ -304,7 +303,7 @@ class CategoryFilterRow extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (ctx, i) {
           final cat = categories[i];
-          final isAll = cat == 'Все';
+          final isAll = cat == allLabel;
           final active = selected == cat;
           final folderCol = isAll ? AppColors.terracotta : resolveColor(cat);
           return GestureDetector(
@@ -357,33 +356,36 @@ class CategoryFilterRow extends StatelessWidget {
 }
 
 // ─── Date formatting helpers ──────────────────────────────
-String formatDate(DateTime dt) {
+String formatDate(DateTime dt, {S? s}) {
+  final loc = s ?? S.of('ru');
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final d = DateTime(dt.year, dt.month, dt.day);
-  if (d == today) return 'Сегодня';
-  if (d == today.subtract(const Duration(days: 1))) return 'Вчера';
-  if (d == today.add(const Duration(days: 1))) return 'Завтра';
-  // Show year only if not current year
+  if (d == today) return loc.today;
+  if (d == today.subtract(const Duration(days: 1))) return loc.yesterday;
+  if (d == today.add(const Duration(days: 1))) return loc.tomorrow;
+  final months = loc.monthsLower;
+  final month = months[dt.month - 1];
   if (dt.year != now.year) {
-    return DateFormat('d MMMM yyyy', 'ru').format(dt);
+    return '${dt.day} $month ${dt.year}';
   }
-  return DateFormat('d MMMM', 'ru').format(dt);
+  return '${dt.day} $month';
 }
 
-String formatDateTime(DateTime? dt) {
+String formatDateTime(DateTime? dt, {S? s}) {
   if (dt == null) return '';
-  return '${formatDate(dt)}, ${DateFormat('HH:mm').format(dt)}';
+  return '${formatDate(dt, s: s)}, ${DateFormat('HH:mm').format(dt)}';
 }
 
-String repeatLabel(RepeatInterval r, int? days) {
+String repeatLabel(RepeatInterval r, int? days, {S? s}) {
+  final loc = s ?? S.of('ru');
   switch (r) {
     case RepeatInterval.none: return '';
-    case RepeatInterval.daily: return 'Каждый день';
-    case RepeatInterval.weekly: return 'Каждую неделю';
-    case RepeatInterval.monthly: return 'Каждый месяц';
-    case RepeatInterval.yearly: return 'Каждый год';
-    case RepeatInterval.custom: return 'Каждые ${days ?? 1} дн.';
+    case RepeatInterval.daily: return loc.repeatDaily;
+    case RepeatInterval.weekly: return loc.repeatWeekly;
+    case RepeatInterval.monthly: return loc.repeatMonthly;
+    case RepeatInterval.yearly: return loc.repeatYearly;
+    case RepeatInterval.custom: return loc.repeatCustom(days ?? 1);
   }
 }
 
@@ -405,11 +407,6 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
   late FixedExtentScrollController _yearCtrl;
   late FixedExtentScrollController _hourCtrl;
   late FixedExtentScrollController _minuteCtrl;
-
-  static const _months = [
-    'Январь','Февраль','Март','Апрель','Май','Июнь',
-    'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь',
-  ];
 
   final int _startYear = DateTime.now().year;
   final int _endYear   = DateTime.now().year + 10;
@@ -543,12 +540,15 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
 
   @override
   Widget build(BuildContext context) {
-    final appFont = context.watch<AppState>().appFont;
+    final state   = context.watch<AppState>();
+    final appFont = state.appFont;
+    final s       = state.s;
     final isDark  = widget.isDark;
     final bg      = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text    = isDark ? AppColors.darkText     : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextDate : AppColors.lightTextDate;
     final divider = isDark ? AppColors.darkDivider  : AppColors.lightDivider;
+    final months  = s.monthsCapital;
 
     return Dialog(
       backgroundColor: bg,
@@ -559,7 +559,7 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Дата и время',
+            Text(s.dateTime,
                 style: appTitleStyle(appFont, size: 16, weight: FontWeight.w600, color: text)),
             const SizedBox(height: 12),
 
@@ -575,7 +575,7 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
                 const SizedBox(width: 4),
                 _drum(
                   ctrl: _monthCtrl, itemCount: 12,
-                  selectedIndex: _month - 1, label: (i) => _months[i],
+                  selectedIndex: _month - 1, label: (i) => months[i],
                   onChanged: _onMonthChanged, isDark: isDark, appFont: appFont, width: 120,
                 ),
                 const SizedBox(width: 4),
@@ -626,7 +626,7 @@ class _CustomDateTimePickerState extends State<CustomDateTimePicker> {
                   GestureDetector(
                     onTap: () => Navigator.pop(
                         context, DateTime(_year, _month, _day, _hour, _minute)),
-                    child: Text('Готово', style: appTitleStyle(appFont,
+                    child: Text(s.done, style: appTitleStyle(appFont,
                         size: 14, weight: FontWeight.w600,
                         color: AppColors.terracotta)),
                   ),

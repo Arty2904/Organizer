@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_theme.dart';
 import '../theme/card_colors.dart';
 import '../widgets/shared_widgets.dart';
@@ -26,8 +27,6 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _selectionState = SelectionState();
-
-  static const _tabLabels = ['Календарь', 'События', 'Заметки', 'Задачи'];
   static const _tabIcons = [
     Icons.calendar_month_outlined, Icons.event_outlined,
     Icons.description_outlined, Icons.checklist_rounded,
@@ -121,11 +120,11 @@ class _HomeShellState extends State<HomeShell> {
                       ),
                 title: inSelect
                     ? Text(
-                        selectedIds.isEmpty ? 'Выбрать' : '${selectedIds.length} выбрано',
+                        selectedIds.isEmpty ? state.s.select : '${selectedIds.length} ${state.s.select.toLowerCase()}',
                         style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: text),
                       )
                     : Text(
-                        _tabLabels[tab],
+                        [state.s.calendar, state.s.events, state.s.notes, state.s.todos][tab],
                         style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: text),
                       ),
                 centerTitle: true,
@@ -206,6 +205,7 @@ class _HomeShellState extends State<HomeShell> {
                       isDark: isDark, navBg: navBg, divider: divider,
                       accent: accent, textSec: textSec, tab: tab,
                       appFont: state.appFont,
+                      s: state.s,
                       onTabChanged: (i) { state.currentTab = i; state.refresh(); },
                     ),
             ),
@@ -216,9 +216,9 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _handleFab(BuildContext context, AppState state) {
-    final notesInit  = state.notesFilter  == 'Все' ? '' : state.notesFilter;
-    final todosInit  = state.todosFilter  == 'Все' ? '' : state.todosFilter;
-    final eventsInit = state.eventsFilter == 'Все' ? '' : state.eventsFilter;
+    final notesInit  = state.notesFilter  == state.s.all ? '' : state.notesFilter;
+    final todosInit  = state.todosFilter  == state.s.all ? '' : state.todosFilter;
+    final eventsInit = state.eventsFilter == state.s.all ? '' : state.eventsFilter;
 
     switch (state.currentTab) {
       case 0:
@@ -248,8 +248,8 @@ class _BottomNav extends StatelessWidget {
   final int tab;
   final String appFont;
   final ValueChanged<int> onTabChanged;
+  final S s;
 
-  static const _labels = ['Календарь', 'События', 'Заметки', 'Задачи'];
   static const _icons = [
     Icons.calendar_month_outlined, Icons.event_outlined,
     Icons.description_outlined, Icons.checklist_rounded,
@@ -262,7 +262,7 @@ class _BottomNav extends StatelessWidget {
   const _BottomNav({
     required this.isDark, required this.navBg, required this.divider,
     required this.accent, required this.textSec, required this.tab,
-    required this.appFont, required this.onTabChanged,
+    required this.appFont, required this.onTabChanged, required this.s,
   });
 
   @override
@@ -288,7 +288,7 @@ class _BottomNav extends StatelessWidget {
                       Icon(active ? _activeIcons[i] : _icons[i], size: 22,
                           color: active ? accent : textSec),
                       const SizedBox(height: 2),
-                      Text(_labels[i], style: appTitleStyle(appFont,
+                      Text([s.calendar, s.events, s.notes, s.todos][i], style: appTitleStyle(appFont,
                         size: 9.5,
                         weight: active ? FontWeight.w600 : FontWeight.w400,
                         color: active ? AppColors.terracotta : textSec,
@@ -309,7 +309,7 @@ class _BottomNav extends StatelessWidget {
 // ─── Toast helper ─────────────────────────────────────────
 void _showFolderToast(BuildContext context, String folderName, bool isDark) {
   final overlay = Overlay.of(context);
-  final label = folderName.isEmpty ? 'Без категории' : folderName;
+  final label = folderName.isEmpty ? context.read<AppState>().s.noCategory : folderName;
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (_) => _FolderToast(
@@ -377,7 +377,7 @@ class _FolderToastState extends State<_FolderToast> with SingleTickerProviderSta
                     Icon(Icons.folder_rounded, size: 15, color: AppColors.terracotta),
                     const SizedBox(width: 8),
                     Text(
-                      'Перемещено в «${widget.label}»',
+                      '${context.read<AppState>().s.movedTo} «${widget.label}»',
                       style: appTitleStyle(context.read<AppState>().appFont, size: 13, weight: FontWeight.w500, color: Colors.white, fontStyle: null),
                     ),
                   ],
@@ -410,6 +410,7 @@ class _BulkActionBar extends StatelessWidget {
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final enabled = selectedIds.isNotEmpty;
+    final s = context.watch<AppState>().s;
 
     return Container(
       decoration: BoxDecoration(
@@ -425,17 +426,17 @@ class _BulkActionBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(children: [
             Expanded(child: _BulkBtn(
-              icon: Icons.delete_outline_rounded, label: 'Удалить',
+              icon: Icons.delete_outline_rounded, label: s.delete,
               color: enabled ? Colors.red.shade400 : textSec,
               enabled: enabled, onTap: () => _confirmDelete(context),
             )),
             Expanded(child: _BulkBtn(
-              icon: Icons.drive_file_move_outline, label: 'Переместить',
+              icon: Icons.drive_file_move_outline, label: s.move,
               color: enabled ? AppColors.terracotta : textSec,
               enabled: enabled, onTap: () => _showMoveSheet(context),
             )),
             Expanded(child: _BulkBtn(
-              icon: Icons.palette_outlined, label: 'Цвет',
+              icon: Icons.palette_outlined, label: s.color,
               color: enabled ? AppColors.terracotta : textSec,
               enabled: enabled, onTap: () => _showColorSheet(context),
             )),
@@ -463,11 +464,11 @@ class _BulkActionBar extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Удалить ${selectedIds.length} эл.?',
-                  style: appTitleStyle(state.appFont, size: 18, weight: FontWeight.w600, color: text)),
+              Text('${context.read<AppState>().s.delete} ${selectedIds.length} ${context.read<AppState>().s.deleteN}',
+                  style: appTitleStyle(context.read<AppState>().appFont, size: 18, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 8),
-              Text('Это действие нельзя отменить.',
-                  style: appTitleStyle(state.appFont, size: 13, color: textSec)),
+              Text(context.read<AppState>().s.deleteCannotUndo,
+                  style: appTitleStyle(context.read<AppState>().appFont, size: 13, color: textSec)),
               const SizedBox(height: 20),
               Row(children: [
                 Expanded(child: GestureDetector(
@@ -479,8 +480,8 @@ class _BulkActionBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
-                    child: Text('Отмена', style: appTitleStyle(
-                        state.appFont, size: 13, weight: FontWeight.w600, color: textSec)),
+                    child: Text(context.read<AppState>().s.cancel, style: appTitleStyle(
+                        context.read<AppState>().appFont, size: 13, weight: FontWeight.w600, color: textSec)),
                   ),
                 )),
                 const SizedBox(width: 10),
@@ -497,8 +498,8 @@ class _BulkActionBar extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(12)),
                     alignment: Alignment.center,
-                    child: Text('Удалить', style: appTitleStyle(
-                        state.appFont, size: 13, weight: FontWeight.w700, color: Colors.white)),
+                    child: Text(context.read<AppState>().s.delete, style: appTitleStyle(
+                        context.read<AppState>().appFont, size: 13, weight: FontWeight.w700, color: Colors.white)),
                   ),
                 )),
               ]),
@@ -538,8 +539,8 @@ class _BulkActionBar extends StatelessWidget {
           const SizedBox(height: 14),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text('Переместить в папку',
-              style: appTitleStyle(state.appFont, size: 16, weight: FontWeight.w600, color: text)),
+            child: Text(context.read<AppState>().s.moveToFolder,
+              style: appTitleStyle(context.read<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
           ),
           const SizedBox(height: 6),
           _FolderTile(
@@ -587,7 +588,7 @@ class _BulkActionBar extends StatelessWidget {
               Center(child: Container(width: 36, height: 4,
                 decoration: BoxDecoration(color: dividerCol, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 14),
-              Text('Цвет карточки',
+              Text(state.s.cardColor,
                 style: appTitleStyle(state.appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 14),
               Wrap(spacing: 10, runSpacing: 10,
@@ -804,9 +805,10 @@ class _OptionsDropDown extends StatelessWidget {
     final text    = isDark ? AppColors.darkText    : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final state   = context.watch<AppState>();
 
     final headerStyle = appTitleStyle(
-      context.watch<AppState>().appFont,
+      state.appFont,
       size: 9, weight: FontWeight.w700, color: AppColors.terracotta.withValues(alpha: 0.8),
     );
 
@@ -820,7 +822,7 @@ class _OptionsDropDown extends StatelessWidget {
               Icon(icon, size: 14, color: sel ? AppColors.terracotta : textSec),
               const SizedBox(width: 8),
               Expanded(child: Text(label, style: appTitleStyle(
-                context.watch<AppState>().appFont,
+                state.appFont,
                 size: 12,
                 weight: sel ? FontWeight.w600 : FontWeight.w400,
                 color: sel ? AppColors.terracotta : text,
@@ -866,16 +868,16 @@ class _OptionsDropDown extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                header('ОТОБРАЖЕНИЕ'),
-                item(Icons.view_agenda_rounded,  'Список',     currentView == 1, () => onViewChanged(1)),
-                item(Icons.grid_view_rounded,    'Сетка',      currentView == 2, () => onViewChanged(2)),
-                item(Icons.view_headline_rounded,'Компактный', currentView == 3, () => onViewChanged(3)),
+                header(state.s.sectionDisplay),
+                item(Icons.view_agenda_rounded,  state.s.viewList,    currentView == 1, () => onViewChanged(1)),
+                item(Icons.grid_view_rounded,    state.s.viewGrid,    currentView == 2, () => onViewChanged(2)),
+                item(Icons.view_headline_rounded,state.s.viewCompact, currentView == 3, () => onViewChanged(3)),
                 Divider(height: 1, color: divider),
-                header('СОРТИРОВКА'),
-                item(Icons.calendar_today_rounded,  'По дате', currentSort == 'date',   () => onSortChanged('date')),
-                item(Icons.drag_indicator_rounded,  'Вручную', currentSort == 'manual', () => onSortChanged('manual')),
+                header(state.s.sectionSort),
+                item(Icons.calendar_today_rounded,  state.s.sortDate, currentSort == 'date',   () => onSortChanged('date')),
+                item(Icons.drag_indicator_rounded,  state.s.sortManual, currentSort == 'manual', () => onSortChanged('manual')),
                 Divider(height: 1, color: divider),
-                item(Icons.checklist_rounded, 'Выделить', false, onEnterSelect),
+                item(Icons.checklist_rounded, state.s.select, false, onEnterSelect),
                 const SizedBox(height: 4),
               ],
             ),

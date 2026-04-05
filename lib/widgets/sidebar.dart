@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
+import '../l10n/app_strings.dart';
 import '../screens/folder_manager_screen.dart';
 import '../screens/notes_screen.dart';
 import '../screens/events_screen.dart';
@@ -71,19 +72,19 @@ class _AppSidebarState extends State<AppSidebar> {
 
     final sections = [
       _SectionData(
-        tab: 3, label: 'ЗАДАЧИ',
+        tab: 3, label: state.s.sectionTodos.toUpperCase(),
         folders: state.todoFolders,
-        items: state.todos.map((t) => _ItemData(id: t.id, title: t.name.isEmpty ? 'Без названия' : t.name, category: t.category)).toList(),
+        items: state.todos.map((t) => _ItemData(id: t.id, title: t.name.isEmpty ? state.s.noTitle : t.name, category: t.category)).toList(),
       ),
       _SectionData(
-        tab: 2, label: 'ЗАМЕТКИ',
+        tab: 2, label: state.s.sectionNotes.toUpperCase(),
         folders: state.noteFolders,
-        items: state.notes.map((n) => _ItemData(id: n.id, title: n.title.isEmpty ? 'Без названия' : n.title, category: n.category)).toList(),
+        items: state.notes.map((n) => _ItemData(id: n.id, title: n.title.isEmpty ? state.s.noTitle : n.title, category: n.category)).toList(),
       ),
       _SectionData(
-        tab: 1, label: 'СОБЫТИЯ',
+        tab: 1, label: state.s.sectionEvents.toUpperCase(),
         folders: state.eventFolders,
-        items: state.events.map((e) => _ItemData(id: e.id, title: e.title.isEmpty ? 'Событие' : e.title, category: e.category)).toList(),
+        items: state.events.map((e) => _ItemData(id: e.id, title: e.title.isEmpty ? state.s.defaultEvent : e.title, category: e.category)).toList(),
       ),
     ];
 
@@ -126,9 +127,9 @@ class _AppSidebarState extends State<AppSidebar> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(state.userName.isEmpty ? 'Профиль' : state.userName,
+                        Text(state.userName.isEmpty ? state.s.profile : state.userName,
                           style: appTitleStyle(state.appFont, size: 14, weight: FontWeight.w600, color: text)),
-                        Text('Настройки', style: appTitleStyle(state.appFont, size: 11, color: textSec)),
+                        Text(state.s.settings, style: appTitleStyle(state.appFont, size: 11, color: textSec)),
                       ]),
                     ),
                     Icon(Icons.chevron_right_rounded, color: textSec, size: 18),
@@ -141,7 +142,7 @@ class _AppSidebarState extends State<AppSidebar> {
 
             // ── Управление папками ──
             _navItem(
-              icon: Icons.folder_outlined, label: 'Управление папками',
+              icon: Icons.folder_outlined, label: state.s.manageFolders,
               isDark: isDark, text: text, textSec: textSec,
               onTap: () {
                 final tab = state.currentTab;
@@ -160,7 +161,7 @@ class _AppSidebarState extends State<AppSidebar> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 12, 6),
               child: Row(children: [
-                Expanded(child: Text('СОДЕРЖИМОЕ', style: appTitleStyle(
+                Expanded(child: Text(state.s.sectionContent.toUpperCase(), style: appTitleStyle(
                   state.appFont,
                   size: 9, weight: FontWeight.w800, color: AppColors.terracotta,
                 ))),
@@ -179,7 +180,7 @@ class _AppSidebarState extends State<AppSidebar> {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        _allCollapsed ? 'Развернуть' : 'Свернуть',
+                        _allCollapsed ? state.s.expand : state.s.collapse,
                         style: appTitleStyle(state.appFont, size: 10, weight: FontWeight.w600, color: AppColors.terracotta),
                       ),
                     ]),
@@ -279,7 +280,7 @@ class _AppSidebarState extends State<AppSidebar> {
                                         size: 16, color: textSec,
                                       ),
                                       const SizedBox(width: 7),
-                                      Expanded(child: Text('без папки', style: appTitleStyle(
+                                      Expanded(child: Text(state.s.noFolder, style: appTitleStyle(
                                         state.appFont,
                                         size: 12, weight: FontWeight.w600,
                                         color: uCollapsed ? text : textSec,
@@ -388,14 +389,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameCtrl;
   late String _pendingAppFont;
   late String _pendingContentFont;
+  late String _pendingLocale;
   OverlayEntry? _fontOverlay;
   OverlayEntry? _contentFontOverlay;
   OverlayEntry? _themeOverlay;
   OverlayEntry? _reminderOverlay;
+  OverlayEntry? _langOverlay;
   final LayerLink _fontLink = LayerLink();
   final LayerLink _contentFontLink = LayerLink();
   final LayerLink _themeLink = LayerLink();
   final LayerLink _reminderLink = LayerLink();
+  final LayerLink _langLink = LayerLink();
 
   @override
   void initState() {
@@ -405,6 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _nameCtrl.addListener(() => setState(() {}));
     _pendingAppFont = state.appFont;
     _pendingContentFont = state.contentFont;
+    _pendingLocale = state.locale;
   }
 
   @override
@@ -419,6 +424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _contentFontOverlay?.remove(); _contentFontOverlay = null;
     _themeOverlay?.remove(); _themeOverlay = null;
     _reminderOverlay?.remove(); _reminderOverlay = null;
+    _langOverlay?.remove(); _langOverlay = null;
   }
 
   void _showFontDropdown(BuildContext ctx, AppState state) {
@@ -559,6 +565,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final s = state.s;
 
     _themeOverlay = OverlayEntry(builder: (_) => GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -581,8 +588,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Column(mainAxisSize: MainAxisSize.min,
                 children: [
-                  ('dark', Icons.dark_mode_rounded, 'Тёмная'),
-                  ('light', Icons.light_mode_rounded, 'Светлая'),
+                  ('dark', Icons.dark_mode_rounded, s.themeDark),
+                  ('light', Icons.light_mode_rounded, s.themeLight),
                 ].map((t) {
                   final sel = isDark ? t.$1 == 'dark' : t.$1 == 'light';
                   return GestureDetector(
@@ -620,17 +627,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _reminderLabel(int minutes) {
-    switch (minutes) {
-      case 5:     return 'За 5 минут';
-      case 10:    return 'За 10 минут';
-      case 15:    return 'За 15 минут';
-      case 30:    return 'За 30 минут';
-      case 60:    return 'За час';
-      case 1440:  return 'За день';
-      case 2880:  return 'За 2 дня';
-      case 10080: return 'За неделю';
-      default:    return 'За $minutes минут';
-    }
+    final s = context.read<AppState>().s;
+    return s.remindMinutes(minutes);
   }
 
   void _showReminderDropdown(BuildContext ctx, AppState state) {
@@ -640,16 +638,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+    final s = state.s;
 
-    const options = [
-      (5,    'За 5 минут'),
-      (10,   'За 10 минут'),
-      (15,   'За 15 минут'),
-      (30,   'За 30 минут'),
-      (60,   'За час'),
-      (1440, 'За день'),
-      (2880, 'За 2 дня'),
-      (10080,'За неделю'),
+    final options = [
+      (5,    s.remind5),
+      (10,   s.remind10),
+      (15,   s.remind15),
+      (30,   s.remind30),
+      (60,   s.remind60),
+      (1440, s.remind1440),
+      (2880, s.remind2880),
+      (10080,s.remind10080),
     ];
 
     _reminderOverlay = OverlayEntry(builder: (_) => GestureDetector(
@@ -705,6 +704,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {});
   }
 
+  void _showLangDropdown(BuildContext ctx, AppState state) {
+    _closeOverlays();
+    final isDark = state.darkMode;
+    final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final text = isDark ? AppColors.darkText : AppColors.lightText;
+    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
+
+    _langOverlay = OverlayEntry(builder: (_) => GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _closeOverlays,
+      child: Stack(children: [
+        Positioned.fill(child: Container(color: Colors.transparent)),
+        CompositedTransformFollower(
+          link: _langLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomLeft,
+          followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 4),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: bg, borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: divider, width: 0.5),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 16, offset: const Offset(0, 4))],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min,
+                      children: () {
+                        final items = <Widget>[];
+                        for (int i = 0; i < kLanguageOptions.length; i++) {
+                          final lang = kLanguageOptions[i];
+                          final sel = _pendingLocale == lang.$1;
+                          items.add(GestureDetector(
+                            onTap: () { setState(() => _pendingLocale = lang.$1); _closeOverlays(); },
+                            child: Container(
+                              color: sel ? AppColors.terracotta.withValues(alpha: 0.08) : Colors.transparent,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                              child: Row(children: [
+                                Text(lang.$3, style: const TextStyle(fontSize: 18)),
+                                const SizedBox(width: 10),
+                                Expanded(child: Text(lang.$2, style: appTitleStyle(
+                                  _pendingAppFont, size: 14,
+                                  weight: sel ? FontWeight.w600 : FontWeight.w400,
+                                  color: sel ? AppColors.terracotta : text,
+                                ))),
+                                if (sel) Icon(Icons.check_rounded, size: 14, color: AppColors.terracotta),
+                              ]),
+                            ),
+                          ));
+                          if (i < kLanguageOptions.length - 1)
+                            items.add(Divider(height: 1, thickness: 0.5, color: divider, indent: 16, endIndent: 16));
+                        }
+                        return items;
+                      }(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    ));
+    Overlay.of(ctx).insert(_langOverlay!);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -719,9 +790,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final currentFont = kFontOptions.firstWhere((f) => f.$1 == _pendingAppFont, orElse: () => kFontOptions.first);
     final currentContentFont = kContentFontOptions.firstWhere((f) => f.$1 == _pendingContentFont, orElse: () => kContentFontOptions.first);
+    final currentLang = kLanguageOptions.firstWhere((l) => l.$1 == _pendingLocale, orElse: () => kLanguageOptions.first);
     final hasChanges = _nameCtrl.text.trim() != state.userName
         || _pendingAppFont != state.appFont
-        || _pendingContentFont != state.contentFont;
+        || _pendingContentFont != state.contentFont
+        || _pendingLocale != state.locale;
 
     return GestureDetector(
       onTap: _closeOverlays,
@@ -734,7 +807,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icon(Icons.arrow_back_ios_rounded, size: 18, color: text),
             onPressed: () => Navigator.pop(context),
           ),
-          title: Text('Настройки', style: appTitleStyle(
+          title: Text(state.s.settings, style: appTitleStyle(
             _pendingAppFont, size: 15, weight: FontWeight.w600, color: text,
           )),
           centerTitle: true,
@@ -749,13 +822,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 8),
 
                   // ── Имя ──
-                  _Section(title: 'ИМЯ', child: TextField(
+                  _Section(title: state.s.settingName, child: TextField(
                     controller: _nameCtrl,
                     maxLines: 1,
                     style: appTitleStyle(_pendingAppFont, size: 14, color: text),
                     decoration: InputDecoration(
                       filled: true, fillColor: fieldBg,
-                      hintText: 'Введите имя...',
+                      hintText: state.s.settingNameHint,
                       hintStyle: appTitleStyle(_pendingAppFont, size: 14, color: textHint),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -766,7 +839,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 20),
 
                   // ── Шрифт элементов интерфейса ──
-                  _Section(title: 'ШРИФТ ЭЛЕМЕНТОВ ИНТЕРФЕЙСА', child: CompositedTransformTarget(
+                  _Section(title: state.s.settingUiFont, child: CompositedTransformTarget(
                     link: _fontLink,
                     child: GestureDetector(
                       onTap: () => _showFontDropdown(context, state),
@@ -787,7 +860,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 16),
 
                   // ── Шрифт пользовательского контента ──
-                  _Section(title: 'ШРИФТ ПОЛЬЗОВАТЕЛЬСКОГО КОНТЕНТА', child: CompositedTransformTarget(
+                  _Section(title: state.s.settingContentFont, child: CompositedTransformTarget(
                     link: _contentFontLink,
                     child: GestureDetector(
                       onTap: () => _showContentFontDropdown(context, state),
@@ -808,7 +881,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 20),
 
                   // ── Тема ──
-                  _Section(title: 'ТЕМА ОФОРМЛЕНИЯ', child: CompositedTransformTarget(
+                  _Section(title: state.s.settingTheme, child: CompositedTransformTarget(
                     link: _themeLink,
                     child: GestureDetector(
                       onTap: () => _showThemeDropdown(context, state),
@@ -818,7 +891,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Row(children: [
                           Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, size: 16, color: AppColors.terracotta),
                           const SizedBox(width: 10),
-                          Expanded(child: Text(isDark ? 'Тёмная' : 'Светлая', style: appTitleStyle(_pendingAppFont, size: 14, color: text))),
+                          Expanded(child: Text(isDark ? state.s.themeDark : state.s.themeLight, style: appTitleStyle(_pendingAppFont, size: 14, color: text))),
                           Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
                         ]),
                       ),
@@ -829,7 +902,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   // ── Напоминания ──
                   _Section(
-                    title: 'НАПОМИНАНИЯ',
+                    title: state.s.settingReminders,
                     tooltip: 'За сколько до начала события приходит уведомление на телефон',
                     child: CompositedTransformTarget(
                       link: _reminderLink,
@@ -852,6 +925,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 20),
+
+                  // ── Язык ──
+                  _Section(title: state.s.settingLanguage, child: CompositedTransformTarget(
+                    link: _langLink,
+                    child: GestureDetector(
+                      onTap: () => _showLangDropdown(context, state),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(color: fieldBg, borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          Text(currentLang.$3, style: const TextStyle(fontSize: 18)),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(
+                            currentLang.$2,
+                            style: appTitleStyle(_pendingAppFont, size: 14, color: text),
+                          )),
+                          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSec),
+                        ]),
+                      ),
+                    ),
+                  )),
+
                   const SizedBox(height: 16),
                 ],
               ),
@@ -871,6 +967,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             state.setUserName(_nameCtrl.text.trim());
                             state.setAppFont(_pendingAppFont);
                             state.setContentFont(_pendingContentFont);
+                            state.setLocale(_pendingLocale);
                             FocusScope.of(context).unfocus();
                           }
                         : null,
@@ -882,7 +979,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       alignment: Alignment.center,
-                      child: Text('Сохранить', style: appTitleStyle(
+                      child: Text(state.s.save, style: appTitleStyle(
                         _pendingAppFont,
                         size: 14, weight: FontWeight.w700, color: Colors.white,
                       )),

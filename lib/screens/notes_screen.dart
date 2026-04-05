@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
@@ -66,7 +67,7 @@ class _NotesScreenState extends State<NotesScreen> {
     return Column(
       children: [
         ScreenHeader(
-          searchHint: 'Поиск заметок...',
+          searchHint: state.s.searchNotes,
           onSearch: (q) => setState(() => _query = q),
           categories: state.noteCategories,
           selectedCategory: state.notesFilter,
@@ -75,11 +76,11 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
         Expanded(
           child: notes.isEmpty
-              ? const EmptyState(icon: Icons.note_add_outlined, label: 'Нет заметок')
+              ? EmptyState(icon: Icons.note_add_outlined, label: state.s.noNotes)
               : v == 1
                   ? _listView(context, notes, state)
                   : v == 2
-                      ? _NoteGrid(notes: notes, state: state, showTag: state.notesFilter == 'Все', onOpenEditor: (n) => _openEditor(context, n))
+                      ? _NoteGrid(notes: notes, state: state, showTag: state.notesFilter == state.s.all, onOpenEditor: (n) => _openEditor(context, n))
                       : _compactView(context, notes, state),
         ),
       ],
@@ -102,7 +103,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 child: _SwipableNote(
                   key: ValueKey('note-sw-${note.id}'),
                   note: note,
-                  showTag: state.notesFilter == 'Все',
+                  showTag: state.notesFilter == state.s.all,
                   expanded: _expandedIds.contains(note.id),
                   onToggleExpand: () => _toggleExpand(note.id),
                   onTap: () => _openEditor(context, note),
@@ -272,14 +273,15 @@ class _SwipableNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.watch<AppState>().darkMode;
+    final appState = context.watch<AppState>();
+    final isDark = appState.darkMode;
     return Dismissible(
       key: ValueKey('dismiss-${note.id}'),
       direction: DismissDirection.endToStart,
       confirmDismiss: (_) => DeleteConfirmDialog.show(
         context,
         isDark: isDark,
-        title: 'Удалить?',
+        title: appState.s.deleteConfirm,
         subtitle: note.title,
       ),
       onDismissed: (_) => onDelete(),
@@ -295,7 +297,7 @@ class _SwipableNote extends StatelessWidget {
           children: [
             const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
             const SizedBox(height: 2),
-            Text('Удалить', style: appTitleStyle(context.watch<AppState>().appFont, size: 10, weight: FontWeight.w600, color: Colors.white)),
+            Text(appState.s.delete, style: appTitleStyle(appState.appFont, size: 10, weight: FontWeight.w600, color: Colors.white)),
           ],
         ),
       ),
@@ -670,10 +672,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   void _showDropdownMenu(BuildContext context, bool isDark) {
     _hideMenu();
+    final state = context.read<AppState>();
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
-    final appFont = context.read<AppState>().appFont;
+    final appFont = state.appFont;
 
     _menuOverlayEntry = OverlayEntry(
       builder: (_) => GestureDetector(
@@ -719,7 +722,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             children: [
                               Icon(Icons.palette_outlined, size: 16, color: AppColors.terracotta),
                               const SizedBox(width: 10),
-                              Text('Цвет', style: appTitleStyle(appFont, size: 13, color: text)),
+                              Text(context.read<AppState>().s.color, style: appTitleStyle(appFont, size: 13, color: text)),
                             ],
                           ),
                         ),
@@ -738,7 +741,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             children: [
                               Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.withValues(alpha: 0.75)),
                               const SizedBox(width: 10),
-                              Text('Удалить', style: appTitleStyle(appFont, size: 13, color: Colors.red.withValues(alpha: 0.85))),
+                              Text(context.read<AppState>().s.delete, style: appTitleStyle(appFont, size: 13, color: Colors.red.withValues(alpha: 0.85))),
                             ],
                           ),
                         ),
@@ -756,6 +759,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _showColorPickerPopup(BuildContext context, bool isDark) {
+    final state = context.read<AppState>();
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     showDialog(
@@ -770,7 +774,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Цвет заметки', style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
+              Text(state.s.noteColor, style: appTitleStyle(context.watch<AppState>().appFont, size: 16, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 16),
               ColorPickerGrid(
                 selectedIndex: _colorIndex,
@@ -787,10 +791,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _showDeleteConfirm(BuildContext context, bool isDark) {
+    final state = context.read<AppState>();
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final textSec = isDark ? AppColors.darkTextBody : AppColors.lightTextBody;
-    final appFont = context.read<AppState>().appFont;
+    final appFont = state.appFont;
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -803,10 +808,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Удалить заметку?', style: appTitleStyle(appFont, size: 18, weight: FontWeight.w600, color: text)),
+              Text(context.read<AppState>().s.deleteNote, style: appTitleStyle(appFont, size: 18, weight: FontWeight.w600, color: text)),
               const SizedBox(height: 8),
               Text(
-                widget.note?.title.isEmpty ?? true ? 'Без названия' : widget.note!.title,
+                widget.note?.title.isEmpty ?? true ? context.read<AppState>().s.noTitle : widget.note!.title,
                 style: appTitleStyle(appFont, size: 13, color: textSec),
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),
@@ -823,7 +828,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text('Отмена', style: appTitleStyle(
+                        child: Text(context.read<AppState>().s.cancel, style: appTitleStyle(
                           appFont, size: 13, weight: FontWeight.w600, color: textSec,
                         )),
                       ),
@@ -843,7 +848,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text('Удалить', style: appTitleStyle(
+                        child: Text(context.read<AppState>().s.delete, style: appTitleStyle(
                           appFont, size: 13, weight: FontWeight.w700, color: Colors.white,
                         )),
                       ),
@@ -867,7 +872,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       return;
     }
     final state = context.read<AppState>();
-    final title = _titleCtrl.text.trim().isEmpty ? 'Без названия' : _titleCtrl.text.trim();
+    final title = _titleCtrl.text.trim().isEmpty ? state.s.noTitle : _titleCtrl.text.trim();
     if (widget.note != null) {
       widget.note!.title = title;
       widget.note!.body = _bodyCtrl.text;
@@ -930,7 +935,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               icon: Icon(Icons.arrow_back_ios_rounded, size: 18, color: text),
               onPressed: _saveAndPop,
             ),
-            title: Text('Заметка',
+            title: Text(state.s.defaultNote,
               style: appTitleStyle(state.appFont, size: 15, weight: FontWeight.w600, color: text),
             ),
             actions: [
@@ -964,7 +969,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          hintText: 'Заголовок',
+                          hintText: state.s.noteTitle,
                           hintStyle: appTitleStyle(state.appFont, size: 24, weight: FontWeight.w600, color: textHint),
                           contentPadding: EdgeInsets.zero,
                           isDense: true,
@@ -988,7 +993,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          hintText: 'Текст заметки...',
+                          hintText: state.s.notePlaceholder,
                           hintStyle: contentStyle(state.contentFont, size: 15, color: textHint, height: 1.4),
                           contentPadding: EdgeInsets.zero,
                           isDense: true,
@@ -1005,7 +1010,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            '${formatDate(editDate)}  ·  $charCount симв.',
+                            '${formatDate(editDate, s: state.s)}  ·  $charCount симв.',
                             style: GoogleFonts.dmSans(fontSize: 10, color: textSec),
                           ),
                         ],

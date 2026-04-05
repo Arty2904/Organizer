@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../l10n/app_strings.dart';
 import 'shared_widgets.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_helper.dart';
@@ -67,13 +68,13 @@ class DeleteConfirmDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Удалить?',
+              context.watch<AppState>().s.deleteConfirm,
               style: appTitleStyle(appFont, size: 18, weight: FontWeight.w600, color: text),
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 8),
               Text(
-                subtitle!.isEmpty ? 'Без названия' : subtitle!,
+                subtitle!.isEmpty ? context.watch<AppState>().s.noTitle : subtitle!,
                 style: appTitleStyle(appFont, size: 13, color: textSec),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -81,7 +82,7 @@ class DeleteConfirmDialog extends StatelessWidget {
             ] else ...[
               const SizedBox(height: 8),
               Text(
-                'Это действие нельзя отменить.',
+                context.watch<AppState>().s.deleteCannotUndo,
                 style: appTitleStyle(appFont, size: 13, color: textSec),
               ),
             ],
@@ -90,7 +91,7 @@ class DeleteConfirmDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: _DialogButton(
-                    label: 'Отмена',
+                    label: context.watch<AppState>().s.cancel,
                     color: btnBg,
                     textColor: textSec,
                     onTap: () => Navigator.pop(context, false),
@@ -99,7 +100,7 @@ class DeleteConfirmDialog extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _DialogButton(
-                    label: 'Удалить',
+                    label: context.watch<AppState>().s.delete,
                     color: Colors.red.shade400,
                     textColor: Colors.white,
                     bold: true,
@@ -185,7 +186,7 @@ class SwipableCard extends StatelessWidget {
       confirmDismiss: (_) => DeleteConfirmDialog.show(
         context,
         isDark: isDark,
-        title: 'Удалить?',
+        title: context.watch<AppState>().s.deleteConfirm,
         subtitle: itemName,
       ),
       onDismissed: (_) => onDelete(),
@@ -313,7 +314,7 @@ class ExpandCollapseBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  allExpanded ? 'Свернуть все' : 'Развернуть все',
+                  allExpanded ? context.watch<AppState>().s.collapseAll : context.watch<AppState>().s.expandAll,
                   style: appTitleStyle(appFont, size: 11, color: AppColors.terracotta),
                 ),
               ],
